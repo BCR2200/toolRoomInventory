@@ -1,5 +1,7 @@
 import datetime
 import logging
+import os
+import uuid
 
 from flask import Flask, render_template, request, redirect, url_for
 
@@ -45,7 +47,7 @@ def add_tool():
     new_id = max(_INVENTORY.keys()) + 1 if _INVENTORY else 1
 
     # Create new tool entry
-    _INVENTORY[new_id] = {
+    tool = {
         'name': name,
         'id': new_id,
         'description': description,
@@ -54,15 +56,11 @@ def add_tool():
             'holder': None
         }
     }
+    _INVENTORY[new_id] = tool
 
     # Handle picture upload if provided
     if 'picture' in request.files:
-        picture = request.files['picture']
-        if picture.filename:
-            # Save the picture and update the tool record with the picture path
-            filename = f"tool_{new_id}_{secure_filename(picture.filename)}"
-            picture.save(os.path.join(app.static_folder, 'tool_images', filename))
-            _INVENTORY[new_id]['picture'] = url_for('static', filename=f'tool_images/{filename}')
+        save_tool_picture(new_id, tool)
 
     app.logger.info(f"New tool added: {name} (ID: {new_id})")
     return redirect(url_for('admin_dashboard'))
@@ -83,14 +81,31 @@ def edit_tool():
 
     # Handle picture upload if provided
     if 'picture' in request.files:
-        picture = request.files['picture']
-        if picture.filename:
-            filename = f"tool_{tool_id}_{secure_filename(picture.filename)}"
-            picture.save(os.path.join(app.static_folder, 'tool_images', filename))
-            tool['picture'] = url_for('static', filename=f'tool_images/{filename}')
+        save_tool_picture(tool_id, tool)
 
     app.logger.info(f"Tool updated: {tool['name']} (ID: {tool_id})")
     return redirect(url_for('admin_dashboard'))
+
+
+def tool_image_filename(id):
+    return f'img_tool_{id}_{uuid.uuid4().hex[:6]}'
+
+
+def save_tool_picture(tool_id, tool):
+    picture = request.files['picture']
+    if picture.filename:
+        filename = tool_image_filename(tool_id)
+        os.makedirs(os.path.join(app.static_folder, 'tool_images'), exist_ok=True)
+        picture.save(os.path.join(app.static_folder, 'tool_images', filename))
+        old_picture = None
+        if 'picture' in tool:
+            old_picture = tool['picture']
+        tool['picture'] = url_for('static', filename=f'tool_images/{filename}')
+        if old_picture:
+            try:
+                os.remove(os.path.join(app.static_folder, 'tool_images', old_picture))
+            except FileNotFoundError:
+                pass
 
 
 @app.route('/admin/delete-tool', methods=['POST'])
@@ -102,6 +117,11 @@ def delete_tool():
     inventory = get_inventory()
     if tool_id in inventory:
         tool = inventory.pop(tool_id)
+        if 'picture' in tool:
+            try:
+                os.remove(os.path.join(app.static_folder, 'tool_images', tool_image_filename(tool_id)))
+            except FileNotFoundError:
+                pass
         app.logger.info(f"Tool deleted: {tool['name']} (ID: {tool_id})")
 
     return redirect(url_for('admin_dashboard'))
@@ -170,6 +190,19 @@ _INVENTORY = {
         'name': 'ethernet cable',
         'id': 43,
         'description': '6ft cat5',
+        'status': {
+            'signed_out': True,
+            'holder': {
+                'id': 24,
+                'since': '2025-03-22T14:52:37.659071+00:00'
+            }
+        }
+    },
+    1: {
+        'name': 'Jake',
+        'id': 1,
+        'description': 'hits stuff',
+        'picture': '/static/tool_images/jake.png',
         'status': {
             'signed_out': True,
             'holder': {
