@@ -7,6 +7,11 @@ app = Flask(__name__, static_folder='app/public_static', static_url_path='/stati
 app.template_folder = 'app/templates'
 
 
+@app.route('/favicon.ico')
+def favicon():
+    return redirect(url_for('static', filename='favicon.ico'))
+
+
 @app.route('/dashboard')
 def dashboard():
     return render_template('dashboard.html.jinja2',
@@ -17,13 +22,89 @@ def dashboard():
                            signed_out_tools=get_signed_out_tools())
 
 
+# Update the admin_dashboard route
 @app.route('/admin-dashboard')
 def admin_dashboard():
-    # TODO make admin dashboard
-    return render_template('dashboard.html.jinja2',
+    if not get_user()['is_admin']:
+        return redirect(url_for('dashboard'))
+
+    return render_template('admin_dashboard.html.jinja2',
                            user=get_user(),
-                           users=get_users(),
                            tools=get_inventory())
+
+
+@app.route('/admin/add-tool', methods=['POST'])
+def add_tool():
+    if not get_user()['is_admin']:
+        return redirect(url_for('dashboard'))
+
+    name = request.form.get('name')
+    description = request.form.get('description')
+
+    # Generate a new unique ID
+    new_id = max(_INVENTORY.keys()) + 1 if _INVENTORY else 1
+
+    # Create new tool entry
+    _INVENTORY[new_id] = {
+        'name': name,
+        'id': new_id,
+        'description': description,
+        'status': {
+            'signed_out': False,
+            'holder': None
+        }
+    }
+
+    # Handle picture upload if provided
+    if 'picture' in request.files:
+        picture = request.files['picture']
+        if picture.filename:
+            # Save the picture and update the tool record with the picture path
+            filename = f"tool_{new_id}_{secure_filename(picture.filename)}"
+            picture.save(os.path.join(app.static_folder, 'tool_images', filename))
+            _INVENTORY[new_id]['picture'] = url_for('static', filename=f'tool_images/{filename}')
+
+    app.logger.info(f"New tool added: {name} (ID: {new_id})")
+    return redirect(url_for('admin_dashboard'))
+
+
+@app.route('/admin/edit-tool', methods=['POST'])
+def edit_tool():
+    if not get_user()['is_admin']:
+        return redirect(url_for('dashboard'))
+
+    tool_id = int(request.form.get('tool_id'))
+    if tool_id not in _INVENTORY:
+        return redirect(url_for('admin_dashboard'))
+
+    tool = _INVENTORY[tool_id]
+    tool['name'] = request.form.get('name')
+    tool['description'] = request.form.get('description')
+
+    # Handle picture upload if provided
+    if 'picture' in request.files:
+        picture = request.files['picture']
+        if picture.filename:
+            filename = f"tool_{tool_id}_{secure_filename(picture.filename)}"
+            picture.save(os.path.join(app.static_folder, 'tool_images', filename))
+            tool['picture'] = url_for('static', filename=f'tool_images/{filename}')
+
+    app.logger.info(f"Tool updated: {tool['name']} (ID: {tool_id})")
+    return redirect(url_for('admin_dashboard'))
+
+
+@app.route('/admin/delete-tool', methods=['POST'])
+def delete_tool():
+    if not get_user()['is_admin']:
+        return redirect(url_for('dashboard'))
+
+    tool_id = int(request.form.get('tool_id'))
+    inventory = get_inventory()
+    if tool_id in inventory:
+        tool = inventory.pop(tool_id)
+        app.logger.info(f"Tool deleted: {tool['name']} (ID: {tool_id})")
+
+    return redirect(url_for('admin_dashboard'))
 
 
 @app.route('/borrow-tool', methods=['POST'])
