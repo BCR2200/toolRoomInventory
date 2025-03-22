@@ -1,0 +1,147 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Tool Room Inventory - Dashboard</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+</head>
+<body>
+    <nav class="navbar navbar-expand-lg navbar-dark bg-dark">
+        <div class="container">
+            <a class="navbar-brand" href="#">TRI Dashboard</a>
+            <div class="navbar-nav ms-auto">
+                {% if user.is_admin %}
+                    <a class="nav-link" href="{{ url_for('admin_dashboard') }}">Admin Dashboard</a>
+                {% endif %}
+                <span class="nav-link">Welcome, {{ user.name }}</span>
+            </div>
+        </div>
+    </nav>
+
+    <div class="container mt-4">
+        <div class="row">
+            <!-- Available Tools Section -->
+            <div class="col-md-6">
+                <div class="card">
+                    <div class="card-header">
+                        <h2>Available Tools</h2>
+                    </div>
+                    <div class="card-body">
+                        {% if available_tools %}
+                            <div class="row">
+                                {% for id, tool in available_tools.items() %}
+                                    <div class="col-md-6 mb-3">
+                                        <div class="card">
+                                            {% if tool.picture %}
+                                                <img src="{{ tool.picture }}" class="card-img-top" alt="{{ tool.name }}">
+                                            {% endif %}
+                                            <div class="card-body">
+                                                <h5 class="card-title">{{ tool.name }}</h5>
+                                                <p class="card-text">ID: {{ tool.id }}</p>
+                                                {% if tool.description %}
+                                                    <p class="card-text">{{ tool.description }}</p>
+                                                {% endif %}
+                                                {% if user.is_user %}
+                                                    <form method="POST" action="{{ url_for('borrow_tool') }}">
+                                                        <input type="hidden" name="tool_id" value="{{ tool.id }}">
+                                                        <input type="hidden" name="user_id" value="{{ user.id }}">
+                                                        <button type="submit" class="btn btn-primary">Borrow Tool</button>
+                                                    </form>
+                                                {% endif %}
+                                            </div>
+                                        </div>
+                                    </div>
+                                {% endfor %}
+                            </div>
+                        {% else %}
+                            <p>No tools currently available.</p>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+
+            <!-- My Signed Out Tools Section -->
+            <div class="col-md-6">
+                <div class="card">
+                    <div class="card-header">
+                        <h2>My Signed Out Tools</h2>
+                    </div>
+                    <div class="card-body">
+                        {% if my_tools %}
+                            <div class="row">
+                                {% for id, tool in my_tools.items() %}
+                                    <div class="col-md-6 mb-3">
+                                        <div class="card">
+                                            {% if tool.picture %}
+                                                <img src="{{ tool.picture }}" class="card-img-top" alt="{{ tool.name }}">
+                                            {% endif %}
+                                            <div class="card-body">
+                                                <h5 class="card-title">{{ tool.name }}</h5>
+                                                <p class="card-text">ID: {{ tool.id }}</p>
+                                                {% if tool.description %}
+                                                    <p class="card-text">{{ tool.description }}</p>
+                                                {% endif %}
+                                                <p class="card-text">Borrowed by: {{ users[tool.status.holder.id].name }}</p>
+                                                <p class="card-text">Borrowed on: {{ tool.status.holder.since }}</p>
+                                                <form method="POST" action="{{ url_for('return_tool') }}">
+                                                    <input type="hidden" name="tool_id" value="{{ tool.id }}">
+                                                    <input type="hidden" name="user_id" value="{{ tool.id }}">
+                                                    <button type="submit" class="btn btn-success">Return Tool</button>
+                                                </form>
+                                            </div>
+                                        </div>
+                                    </div>
+                                {% endfor %}
+                            </div>
+                        {% else %}
+                            <p>No tools are currently signed out.</p>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+
+            <!-- Signed Out Tools Section -->
+            <div class="col-md-6">
+                <div class="card">
+                    <div class="card-header">
+                        <h2>Signed Out Tools</h2>
+                    </div>
+                    <div class="card-body">
+                        {% if signed_out_tools %}
+                            <div class="row">
+                                {% for id, tool in signed_out_tools.items() %}
+                                    <div class="col-md-6 mb-3">
+                                        <div class="card">
+                                            {% if tool.picture %}
+                                                <img src="{{ tool.picture }}" class="card-img-top" alt="{{ tool.name }}">
+                                            {% endif %}
+                                            <div class="card-body">
+                                                <h5 class="card-title">{{ tool.name }}</h5>
+                                                <p class="card-text">ID: {{ tool.id }}</p>
+                                                <p class="card-text">Borrowed by: {{ users[tool.status.holder.id] }}</p>
+                                                <p class="card-text">Borrowed on: {{ tool.status.holder.since }}</p>
+                                                {% if tool.status.holder.id == user.id %}
+                                                    <form method="POST" action="{{ url_for('return_tool') }}">
+                                                        <input type="hidden" name="tool_id" value="{{ tool.id }}">
+                                                        <input type="hidden" name="user_id" value="{{ tool.id }}">
+                                                        <button type="submit" class="btn btn-success">Return Tool</button>
+                                                    </form>
+                                                {% endif %}
+                                            </div>
+                                        </div>
+                                    </div>
+                                {% endfor %}
+                            </div>
+                        {% else %}
+                            <p>No tools are currently signed out.</p>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>
