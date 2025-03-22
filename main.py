@@ -125,7 +125,7 @@ def edit_tool():
             SET name = ?, description = ?, picture = COALESCE(?, picture)
             WHERE id = ?
         ''', (name, description, picture_path, tool_id))
-        
+
         g.db.conn.commit()
     except Exception as e:
         g.db.conn.rollback()
