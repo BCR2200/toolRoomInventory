@@ -3,11 +3,36 @@ import json
 import logging
 import os
 import uuid
+from pathlib import Path
 
-from flask import Flask, render_template, request, redirect, url_for
+from flask import Flask, render_template, request, redirect, url_for, g
+from server.db.db import DB
+from server.db.helpers import create_sample_data, drop_all_data
 
 app = Flask(__name__, static_folder='app/public_static', static_url_path='/static')
 app.template_folder = 'app/templates'
+
+
+TOOL_IMAGES_PATH = Path(app.static_folder) / 'tool_images'
+TOOL_IMAGES_PATH.mkdir(exist_ok=True)
+
+
+@app.before_request
+def set_request_globals():
+    """Set up a new database connection for each request."""
+    g.db = DB(DB_PATH)
+    g.db.connect()
+    # TODO
+    # g.user = webserver.authnz.authorize.logged_in_user()
+    # g.user_role = webserver.authnz.authorize.logged_in_user_role()
+
+
+@app.after_request
+def cleanup(response):
+    """Clean up the database connection after each request."""
+    if hasattr(g, 'db'):
+        g.db.close()
+    return response
 
 
 @app.route('/favicon.ico')
@@ -42,108 +67,146 @@ def admin_dashboard():
 @app.route('/admin/add-tool', methods=['POST'])
 def add_tool():
     if not get_user()['is_admin']:
-        return redirect(url_for('dashboard'))
+        return redirect(url_for('dashboard', result=json.dumps({
+            'success': False,
+            'message': 'You do not have permission to access this page.'
+        })))
 
     name = request.form.get('name')
     description = request.form.get('description')
-
-    # Generate a new unique ID
-    new_id = max(_INVENTORY.keys()) + 1 if _INVENTORY else 1
-
-    # Create new tool entry
-    tool = {
-        'name': name,
-        'id': new_id,
-        'description': description,
-        'status': {
-            'signed_out': False,
-            'holder': None
-        }
-    }
-    _INVENTORY[new_id] = tool
-
+    picture_path = None
     # Handle picture upload if provided
     if 'picture' in request.files:
-        save_tool_picture(new_id, tool)
+        picture_path = save_tool_picture()
+
+    # Insert new tool
+    g.db.cursor.execute('''
+        INSERT INTO inventory (name, description, picture, signed_out, holder_id, signed_out_since)
+        VALUES (?, ?, ?, 0, NULL, NULL)
+        RETURNING id
+    ''', (name, description, picture_path))
+    new_id = g.db.cursor.fetchone()[0]
+    g.db.conn.commit()
 
     app.logger.info(f"New tool added: {name} (ID: {new_id})")
-    return redirect(url_for('admin_dashboard'))
+    return redirect(url_for('admin_dashboard', result=json.dumps({
+        'success': True,
+        'message': f"Tool '{name}' added successfully."
+    })))
 
 
 @app.route('/admin/edit-tool', methods=['POST'])
 def edit_tool():
     if not get_user()['is_admin']:
-        return redirect(url_for('dashboard'))
+        return redirect(url_for('dashboard', result=json.dumps({
+            'success': False,
+            'message': 'You do not have permission to access this page.'
+        })))
 
     tool_id = int(request.form.get('tool_id'))
-    if tool_id not in _INVENTORY:
-        return redirect(url_for('admin_dashboard'))
-
-    tool = _INVENTORY[tool_id]
-    tool['name'] = request.form.get('name')
-    tool['description'] = request.form.get('description')
-
+    name = request.form.get('name')
+    description = request.form.get('description')
+    picture_path = None
     # Handle picture upload if provided
     if 'picture' in request.files:
-        save_tool_picture(tool_id, tool)
+        picture_path = save_tool_picture()
 
-    app.logger.info(f"Tool updated: {tool['name']} (ID: {tool_id})")
-    return redirect(url_for('admin_dashboard'))
+    # Start transaction with SERIALIZABLE isolation
+    g.db.cursor.execute('BEGIN IMMEDIATE TRANSACTION')
+    old_picture_path = None
+    try:
+        # Get the current picture value
+        g.db.cursor.execute('SELECT picture FROM inventory WHERE id = ?', (tool_id,))
+        old_picture_path = g.db.cursor.fetchone()[0]
 
-def tool_image_filename(tool_id):
-    return f'img_tool_{tool_id}_{uuid.uuid4().hex[:6]}'
-
-
-def save_tool_picture(tool_id, tool):
-    picture = request.files['picture']
-    if picture.filename:
-        filename = tool_image_filename(tool_id)
-        os.makedirs(os.path.join(app.static_folder, 'tool_images'), exist_ok=True)
-        picture.save(os.path.join(app.static_folder, 'tool_images', filename))
-        old_picture = None
-        if 'picture' in tool:
-            old_picture = tool['picture']
-        tool['picture'] = url_for('static', filename=f'tool_images/{filename}')
-        if old_picture:
-            try:
-                os.remove(os.path.join(app.static_folder, 'tool_images', old_picture))
-            except FileNotFoundError:
-                pass
+        # Update tool
+        g.db.cursor.execute('''
+            UPDATE inventory 
+            SET name = ?, description = ?, picture = COALESCE(?, picture)
+            WHERE id = ?
+        ''', (name, description, picture_path, tool_id))
+        
+        g.db.conn.commit()
+    except Exception as e:
+        g.db.conn.rollback()
+        e_msg = f'Error updating tool: {e}'
+        app.logger.error(e_msg)
+        return redirect(url_for('admin_dashboard', result=json.dumps({
+            'success': False,
+            'message': e_msg
+        })))
+    if old_picture_path:
+        # Clean up old picture
+        sanitized_old_path = ensure_path_in_base(TOOL_IMAGES_PATH, old_picture_path)
+        sanitized_old_path.unlink()
+        app.logger.debug(f"Old picture deleted (ID: {tool_id}): {sanitized_old_path}")
+    app.logger.info(f"Tool updated: {name} (ID: {tool_id})")
+    return redirect(url_for('admin_dashboard', result=json.dumps({
+        'success': True,
+        'message': f"Tool '{name}' updated successfully."
+    })))
 
 
 @app.route('/admin/delete-tool', methods=['POST'])
 def delete_tool():
     if not get_user()['is_admin']:
-        return redirect(url_for('dashboard'))
+        return redirect(url_for('dashboard', result=json.dumps({
+            'success': False,
+            'message': 'You do not have permission to access this page.'
+        })))
 
     tool_id = int(request.form.get('tool_id'))
-    inventory = get_inventory()
-    if tool_id in inventory:
-        tool = inventory.pop(tool_id)
-        if 'picture' in tool:
-            try:
-                os.remove(os.path.join(app.static_folder, 'tool_images', tool_image_filename(tool_id)))
-            except FileNotFoundError:
-                pass
-        app.logger.info(f"Tool deleted: {tool['name']} (ID: {tool_id})")
 
-    return redirect(url_for('admin_dashboard'))
+    g.db.cursor.execute('BEGIN IMMEDIATE TRANSACTION')
+    old_picture_path = None
+    try:
+        g.db.cursor.execute('DELETE FROM main.inventory WHERE id = ? RETURNING name, picture', (tool_id,))
+        tool, old_picture_path = g.db.cursor.fetchone()
+    except Exception as e:
+        g.db.conn.rollback()
+        e_msg = f'Error deleting tool: {e}'
+        app.logger.error(e_msg)
+        return redirect(url_for('admin_dashboard', result=json.dumps({
+            'success': False,
+            'message': e_msg
+        })))
+    if old_picture_path:
+        # Clean up old picture
+        sanitized_old_path = ensure_path_in_base(TOOL_IMAGES_PATH, old_picture_path)
+        sanitized_old_path.unlink()
+        app.logger.debug(f"Old picture deleted (ID: {tool_id}): {sanitized_old_path}")
+    app.logger.info(f"Tool deleted: {tool} (ID: {tool_id})")
+    return redirect(url_for('admin_dashboard', result=json.dumps({
+        'success': True,
+        'message': f"Tool '{tool}' deleted successfully."
+    })))
 
 
 @app.route('/borrow-tool', methods=['POST'])
 def borrow_tool():
     tool_id = int(request.form.get('tool_id'))
+    # TODO: get user from user making request, not user that the user said is making the request
     user_id = int(request.form.get('user_id'))
-    inventory = get_inventory()
-    if tool_id in inventory and not inventory[tool_id]['status']['signed_out']:
-        inventory[tool_id]['status']['signed_out'] = True
-        inventory[tool_id]['status']['holder'] = {
-            'id': user_id,
-            'since': datetime.datetime.now().isoformat()
-        }
+
+    # Check if tool exists and is available
+    g.db.cursor.execute('''
+        SELECT signed_out FROM inventory 
+        WHERE id = ? AND signed_out = 0
+    ''', (tool_id,))
+    if g.db.cursor.fetchone():
+        # Update tool status
+        g.db.cursor.execute('''
+            UPDATE inventory 
+            SET signed_out = 1, 
+                holder_id = ?,
+                signed_out_since = ?
+            WHERE id = ?
+        ''', (user_id, datetime.datetime.now().isoformat(), tool_id))
+        g.db.conn.commit()
         app.logger.info(f"Tool {tool_id} has been borrowed by user {user_id}.")
     else:
         app.logger.warning(f"Attempt to borrow unavailable tool {tool_id}.")
+
     return redirect(url_for('dashboard'))
 
 
@@ -151,82 +214,66 @@ def borrow_tool():
 def return_tool():
     tool_id = int(request.form.get('tool_id'))
     user_id = int(request.form.get('user_id'))
-    inventory = get_inventory()
-    if tool_id in inventory and inventory[tool_id]['status']['signed_out']:
-        inventory[tool_id]['status']['signed_out'] = False
-        inventory[tool_id]['status']['holder'] = None
-        app.logger.info(f"Tool {tool_id} has been borrowed by user {user_id}.")
+
+    # Check if tool exists and is signed out
+    g.db.cursor.execute('''
+        SELECT signed_out FROM inventory 
+        WHERE id = ? AND signed_out = 1
+    ''', (tool_id,))
+    if g.db.cursor.fetchone():
+        # Update tool status
+        g.db.cursor.execute('''
+            UPDATE inventory 
+            SET signed_out = 0,
+                holder_id = NULL,
+                signed_out_since = NULL
+            WHERE id = ?
+        ''', (tool_id,))
+        g.db.conn.commit()
+        app.logger.info(f"Tool {tool_id} has been returned by user {user_id}.")
     else:
         app.logger.warning(f"Attempt to return non-signed-out tool {tool_id}.")
+
     return redirect(url_for('dashboard'))
 
 
-_USERS = {
-    1: {
-        'id': 1,
-        'name': 'Hugo',
-        'is_admin': True,
-        'is_user': True,
-    },
-    2: {
-        'id': 2,
-        'name': 'Jake',
-        'is_admin': False,
-        'is_user': True,
-    },
-
-}
-
-
 def get_users():
-    return _USERS
-
+    g.db.cursor.execute('SELECT id, name, is_admin, is_user FROM users')
+    return {
+        row[0]: {
+            'id': row[0],
+            'name': row[1],
+            'is_admin': bool(row[2]),
+            'is_user': bool(row[3])
+        }
+        for row in g.db.cursor.fetchall()
+    }
 
 def get_user():
-    return _USERS[2]
-
-
-_INVENTORY = {
-    42: {
-        'name': 'hammer',
-        'id': 42,
-        'description': 'hits stuff',
-        'status': {
-            'signed_out': False,
-            'holder': None
-        }
-    },
-    43: {
-        'name': 'ethernet cable',
-        'id': 43,
-        'description': '6ft cat5',
-        'status': {
-            'signed_out': True,
-            'holder': {
-                'id': 2,
-                'since': '2025-03-22T14:52:37.659071+00:00'
-            }
-        }
-    },
-    1: {
-        'name': 'Jake',
-        'id': 1,
-        'description': 'hits stuff',
-        'picture': '/static/tool_images/jake.png',
-        'status': {
-            'signed_out': True,
-            'holder': {
-                'id': 1,
-                'since': '2025-03-22T14:52:37.659071+00:00'
-            }
-        }
-    }
-}
-
+    # TODO: get the user from the request
+    return get_users()[1]
 
 def get_inventory():
-    return _INVENTORY
-
+    g.db.cursor.execute('''
+        SELECT id, name, description, picture, signed_out, holder_id, signed_out_since 
+        FROM inventory
+    ''')
+    return {
+        row[0]: {
+            'id': row[0],
+            'name': row[1],
+            'description': row[2],
+            'picture': row[3],
+            'status': {
+                'signed_out': bool(row[4]),
+                'holder': {
+                    'id': row[5],
+                    'since': row[6]
+                } if row[5] is not None else None
+            }
+        }
+        for row in g.db.cursor.fetchall()
+    }
 
 def get_available_tools():
     return {tool_id: tool for tool_id, tool in get_inventory().items() if not tool['status']['signed_out']}
@@ -244,8 +291,50 @@ def get_my_tools():
     }
 
 
+def save_tool_picture():
+    if 'picture' not in request.files:
+        return None
+    picture = request.files['picture']
+    if picture.filename:
+        filename = uuid.uuid4().hex
+        final_path = sanitize_path(TOOL_IMAGES_PATH, filename)
+        picture.save(final_path)
+        return final_path
+
+
+def sanitize_path(base_path, path, allow_subdirs:bool = False):
+    new_path = Path(base_path) / path
+    new_path = ensure_path_in_base(base_path, new_path, allow_subdirs=allow_subdirs)
+    return new_path.resolve()
+
+
+def ensure_path_in_base(base_path, path, allow_subdirs:bool = False):
+    '''Ensure that the path is within the base directory and does not contain parent directory references.'''
+    base_path = Path(base_path).resolve()
+    test_path = Path(path).resolve()
+    if allow_subdirs:
+        if not base_path in test_path.parents:
+            raise ValueError("Invalid path")
+    else:
+        if base_path != test_path.parent:
+            raise ValueError("Invalid path")
+    return test_path
+
+
+DB_PATH = Path('data/inventory.db')
+
+
 def main():
-    app.logger.level = logging.INFO
+    app.logger.level = logging.DEBUG
+
+    # Initialize database
+    DB_PATH.parent.mkdir(exist_ok=True)
+    # Initialize default users if they don't exist
+    with DB(DB_PATH, auto_migrate=True) as db:
+        db.self_test()
+        drop_all_data(db)
+        create_sample_data(db)
+
     app.run(host='127.0.0.1', port=5000, debug=True)
 
 if __name__ == "__main__":

@@ -13,7 +13,25 @@ class Params(Enum):
 
 class DB:
     _MIGRATIONS: List[str] = [
-        # TODO: Create tables with STRICT and timestamp fields
+        # Create users table
+        '''CREATE TABLE IF NOT EXISTS users (
+            id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+            name TEXT NOT NULL,
+            is_admin BOOLEAN NOT NULL DEFAULT 0,
+            is_user BOOLEAN NOT NULL DEFAULT 1
+        )''',
+        
+        # Create inventory table
+        '''CREATE TABLE IF NOT EXISTS inventory (
+            id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+            name TEXT NOT NULL,
+            description TEXT,
+            picture TEXT,
+            signed_out BOOLEAN NOT NULL DEFAULT 0,
+            holder_id INTEGER,
+            signed_out_since TEXT,
+            FOREIGN KEY (holder_id) REFERENCES users(id)
+        )'''
     ]
     VERSION = len(_MIGRATIONS)
     _cached_db_version: ClassVar[Optional[int]] = None
