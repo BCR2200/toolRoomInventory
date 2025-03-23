@@ -3,6 +3,15 @@
 {% block title %}Tool Room Inventory - Dashboard{% endblock %}
 
 {% block content %}
+    <div class="toast-container position-fixed top-0 end-0 p-3">
+        <div id="notificationToast" class="toast" role="alert" aria-live="assertive" aria-atomic="true">
+            <div class="toast-header">
+                <strong class="me-auto" id="toastTitle"></strong>
+                <button type="button" class="btn-close" data-bs-dismiss="toast" aria-label="Close"></button>
+            </div>
+            <div class="toast-body" id="toastMessage"></div>
+        </div>
+    </div>
     <div class="row">
         <!-- Available Tools Section -->
         <div class="col-md-6">
@@ -123,4 +132,52 @@
             </div>
         </div>
     </div>
+{% endblock %}
+{% block scripts %}
+    <script>
+        // Initialize the toast
+        const toastElement = document.getElementById('notificationToast');
+        const toastTitle = document.getElementById('toastTitle');
+        const toastMessage = document.getElementById('toastMessage');
+        const toast = new bootstrap.Toast(toastElement, {
+            delay: 3000
+        });
+
+        // Function to show the toast
+        function showToast(message, isSuccess) {
+            // Set the title and message
+            toastTitle.textContent = isSuccess ? 'Success' : 'Error';
+            toastMessage.textContent = message;
+
+            // Set the color theme
+            toastElement.classList.remove('bg-success', 'bg-danger', 'text-white');
+            if (isSuccess) {
+                toastElement.classList.add('bg-success', 'text-white');
+            } else {
+                toastElement.classList.add('bg-danger', 'text-white');
+            }
+
+            // Show the toast
+            toast.show();
+        }
+
+        // Check for result parameter in URL
+        window.addEventListener('load', function() {
+            const urlParams = new URLSearchParams(window.location.search);
+            const result = urlParams.get('result');
+
+            if (result) {
+                try {
+                    const resultData = JSON.parse(decodeURIComponent(result));
+                    showToast(
+                        resultData.message || (resultData.success ? 'Operation successful!' : 'Operation failed!'),
+                        resultData.success
+                    );
+                } catch (e) {
+                    console.error('Failed to parse result parameter:', e);
+                }
+            }
+        });
+
+    </script>
 {% endblock %}

@@ -1,4 +1,5 @@
 import datetime
+import json
 import logging
 import os
 import uuid
@@ -28,7 +29,10 @@ def dashboard():
 @app.route('/admin-dashboard')
 def admin_dashboard():
     if not get_user()['is_admin']:
-        return redirect(url_for('dashboard'))
+        return redirect(url_for('dashboard', result=json.dumps({
+            'success': False,
+            'message': 'You do not have permission to access this page.'
+        })))
 
     return render_template('admin_dashboard.html.jinja2',
                            user=get_user(),
@@ -86,9 +90,8 @@ def edit_tool():
     app.logger.info(f"Tool updated: {tool['name']} (ID: {tool_id})")
     return redirect(url_for('admin_dashboard'))
 
-
-def tool_image_filename(id):
-    return f'img_tool_{id}_{uuid.uuid4().hex[:6]}'
+def tool_image_filename(tool_id):
+    return f'img_tool_{tool_id}_{uuid.uuid4().hex[:6]}'
 
 
 def save_tool_picture(tool_id, tool):
@@ -159,12 +162,19 @@ def return_tool():
 
 
 _USERS = {
-    24: {
-        'id': 24,
+    1: {
+        'id': 1,
         'name': 'Hugo',
         'is_admin': True,
         'is_user': True,
-    }
+    },
+    2: {
+        'id': 2,
+        'name': 'Jake',
+        'is_admin': False,
+        'is_user': True,
+    },
+
 }
 
 
@@ -173,7 +183,7 @@ def get_users():
 
 
 def get_user():
-    return _USERS[24]
+    return _USERS[2]
 
 
 _INVENTORY = {
@@ -193,7 +203,7 @@ _INVENTORY = {
         'status': {
             'signed_out': True,
             'holder': {
-                'id': 24,
+                'id': 2,
                 'since': '2025-03-22T14:52:37.659071+00:00'
             }
         }
@@ -206,7 +216,7 @@ _INVENTORY = {
         'status': {
             'signed_out': True,
             'holder': {
-                'id': 24,
+                'id': 1,
                 'since': '2025-03-22T14:52:37.659071+00:00'
             }
         }
@@ -219,17 +229,17 @@ def get_inventory():
 
 
 def get_available_tools():
-    return {id: tool for id, tool in get_inventory().items() if not tool['status']['signed_out']}
+    return {tool_id: tool for tool_id, tool in get_inventory().items() if not tool['status']['signed_out']}
 
 
 def get_signed_out_tools():
-    return {id: tool for id, tool in get_inventory().items() if tool['status']['signed_out']}
+    return {tool_id: tool for tool_id, tool in get_inventory().items() if tool['status']['signed_out']}
 
 
 def get_my_tools():
     return {
-        id: tool
-        for id, tool in get_signed_out_tools().items()
+        tool_id: tool
+        for tool_id, tool in get_signed_out_tools().items()
         if tool['status']['signed_out'] and tool['status']['holder']['id'] == get_user()['id']
     }
 
