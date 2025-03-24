@@ -1,7 +1,7 @@
 from enum import Enum
 from os import PathLike
 import sqlite3
-from typing import List, Self, Optional, ClassVar
+from typing import List, Dict, Self, Optional, ClassVar
 from threading import Lock
 
 from server.db.meta_props import MetaProps
@@ -34,7 +34,7 @@ class DB:
         )'''
     ]
     VERSION = len(_MIGRATIONS)
-    _cached_db_version: ClassVar[Optional[int]] = None
+    _cached_db_version: ClassVar[Dict[str, int]] = {}
     _version_lock: ClassVar[Lock] = Lock()
     _migration_lock: ClassVar[Lock] = Lock()  # Singleton lock for migrations
 
@@ -46,23 +46,20 @@ class DB:
         
         # Connect and check migrations during initialization
         self.connect()
-        try:
-            db_version = self._get_db_version()
-            if db_version != self.VERSION:
-                if auto_migrate:
-                    # Acquire migration lock before attempting migration
-                    with DB._migration_lock:
-                        # Double-check pattern: Re-check version after acquiring lock in case another thread migrated
-                        db_version = self._get_db_version()
-                        if db_version != self.VERSION:
-                            self.migrate()
-                else:
-                    raise RuntimeError(
-                        f'Database version {db_version} does not match required version {self.VERSION}. '
-                        'Must run with auto_migrate=True.'
-                    )
-        finally:
-            self.close()
+        db_version = self._get_db_version()
+        if db_version != self.VERSION:
+            if auto_migrate:
+                # Acquire migration lock before attempting migration
+                with DB._migration_lock:
+                    # Double-check pattern: Re-check version after acquiring lock in case another thread migrated
+                    db_version = self._get_db_version()
+                    if db_version != self.VERSION:
+                        self.migrate()
+            else:
+                raise RuntimeError(
+                    f'Database version {db_version} does not match required version {self.VERSION}. '
+                    'Must run with auto_migrate=True.'
+                )
 
     def __enter__(self) -> Self:
         self.connect()
@@ -73,6 +70,8 @@ class DB:
 
     def connect(self):
         """Create a new connection with appropriate settings."""
+        if self.conn:
+            return
         self.conn = sqlite3.connect(self.filename)
         self.cursor = self.conn.cursor()
         
@@ -105,14 +104,14 @@ class DB:
     def _get_db_version(self) -> int:
         """Get the current database version, using cached value if available."""
         # Check if we have a cached version
-        if self._cached_db_version is not None:
-            return self._cached_db_version
+        if self.filename in self._cached_db_version:
+            return self._cached_db_version.get(self.filename)
 
         # If not, we need to read from the database
         with self._version_lock:
             # Double-check pattern in case another thread got here first
-            if self._cached_db_version is not None:
-                return self._cached_db_version
+            if self.filename in self._cached_db_version:
+                return self._cached_db_version.get(self.filename)
 
             self.cursor.execute('''
             CREATE TABLE IF NOT EXISTS db_meta_props(
@@ -124,13 +123,13 @@ class DB:
             db_version = self.cursor.execute('''
             SELECT value FROM db_meta_props WHERE name = ?
             ''', [MetaProps.DB_VERSION.value]).fetchone()
-            
             if db_version is None:
-                DB._cached_db_version = 0
+                db_version = 0
             else:
-                DB._cached_db_version = int(db_version[0])
-            
-            return DB._cached_db_version
+                db_version = int(db_version[0])
+
+            self.update_cached_db_version(db_version)
+            return db_version
 
     def migrate(self):
         """Apply any pending migrations."""
@@ -152,14 +151,19 @@ class DB:
             )
             # Update the cached version after successful migration
             with self._version_lock:
-                DB._cached_db_version = to_ver
+                self.update_cached_db_version(to_ver)
             self.conn.commit()
         except Exception:
             self.conn.rollback()
             raise
 
+    def update_cached_db_version(self, version: int):
+        """Assumes that you hold self._version_lock."""
+        if self.filename != ':memory:':
+            DB._cached_db_version[self.filename] = version
+
     @classmethod
     def reset_version_cache(cls):
         """Reset the cached database version. Useful for testing."""
         with cls._version_lock:
-            cls._cached_db_version = None
+            cls._cached_db_version = {}
