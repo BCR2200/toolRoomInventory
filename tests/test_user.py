@@ -8,27 +8,32 @@ class TestUserFromRowDatabase(unittest.TestCase):
     def setUp(self):
         self.db = DB(":memory:", auto_migrate=True)
         self.db.connect()
-        print('running setUp')
 
     def tearDown(self):
         self.db.close()
-        print('running tearDown')
 
     def test_from_row_with_valid_data(self):
-        # Insert a valid user record
-        self.db.cursor.execute("INSERT INTO users (name, is_admin, is_user) VALUES (?, ?, ?) RETURNING id",
-                               ("Alice", True, False))
-        user_id = self.db.cursor.fetchone()[0]
+        values = [
+            (1, 'Alice', True, False),
+            (2, 'Bob', False, True),
+            (3, 'Charlie', False, False),
+            (4, 'David', True, True),
+        ]
+        for value in values:
+            # Insert a valid user record
+            self.db.cursor.execute("INSERT INTO users (id, name, is_admin, is_user) VALUES (?, ?, ?, ?)",
+                                   value)
         self.db.conn.commit()
-        # Retrieve the inserted record
-        self.db.cursor.execute("SELECT * FROM users WHERE id = ?", (user_id,))
-        row = self.db.cursor.fetchone()
-        # Use from_row on the retrieved data
-        user = User.from_row(row)
-        self.assertEqual(user.user_id, user_id)
-        self.assertEqual(user.name, "Alice")
-        self.assertEqual(user.is_admin, True)
-        self.assertEqual(user.is_user, False)
+        for user_id, name, is_admin, is_user in values:
+            # Retrieve the inserted record
+            self.db.cursor.execute("SELECT * FROM users WHERE id = ?", (user_id,))
+            row = self.db.cursor.fetchone()
+            # Use from_row on the retrieved data
+            user = User.from_row(row)
+            self.assertEqual(user.user_id, user_id)
+            self.assertEqual(user.name, name)
+            self.assertEqual(user.is_admin, is_admin)
+            self.assertEqual(user.is_user, is_user)
 
     def test_from_row_with_invalid_data_type(self):
         # Insert invalid data (non-integer user_id)
