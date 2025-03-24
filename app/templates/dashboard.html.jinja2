@@ -37,7 +37,7 @@
                                             {% if user.is_user %}
                                                 <form method="POST" action="{{ url_for('borrow_tool') }}">
                                                     <input type="hidden" name="tool_id" value="{{ tool.id }}">
-                                                    <input type="hidden" name="user_id" value="{{ user.id }}">
+                                                    <input type="hidden" name="user_id" value="{{ user.user_id }}">
                                                     <button type="submit" class="btn btn-primary">Borrow Tool</button>
                                                 </form>
                                             {% endif %}
@@ -78,7 +78,7 @@
                                             <p class="card-text">Borrowed on: {{ tool.status.holder.since }}</p>
                                             <form method="POST" action="{{ url_for('return_tool') }}">
                                                 <input type="hidden" name="tool_id" value="{{ tool.id }}">
-                                                <input type="hidden" name="user_id" value="{{ tool.id }}">
+                                                <input type="hidden" name="user_id" value="{{ user.user_id }}">
                                                 <button type="submit" class="btn btn-success">Return Tool</button>
                                             </form>
                                         </div>

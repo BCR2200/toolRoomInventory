@@ -1,13 +1,14 @@
 import datetime
 import json
 import logging
-import os
 import uuid
 from pathlib import Path
+from typing import Dict
 
 from flask import Flask, render_template, request, redirect, url_for, g
 from server.db.db import DB
 from server.db.helpers import create_sample_data, drop_all_data
+from server.user import User
 
 app = Flask(__name__, static_folder='app/public_static', static_url_path='/static')
 app.template_folder = 'app/templates'
@@ -53,7 +54,7 @@ def dashboard():
 # Update the admin_dashboard route
 @app.route('/admin-dashboard')
 def admin_dashboard():
-    if not get_user()['is_admin']:
+    if not get_user().is_admin:
         return redirect(url_for('dashboard', result=json.dumps({
             'success': False,
             'message': 'You do not have permission to access this page.'
@@ -66,7 +67,7 @@ def admin_dashboard():
 
 @app.route('/admin/add-tool', methods=['POST'])
 def add_tool():
-    if not get_user()['is_admin']:
+    if not get_user().is_admin:
         return redirect(url_for('dashboard', result=json.dumps({
             'success': False,
             'message': 'You do not have permission to access this page.'
@@ -97,7 +98,7 @@ def add_tool():
 
 @app.route('/admin/edit-tool', methods=['POST'])
 def edit_tool():
-    if not get_user()['is_admin']:
+    if not get_user().is_admin:
         return redirect(url_for('dashboard', result=json.dumps({
             'success': False,
             'message': 'You do not have permission to access this page.'
@@ -149,7 +150,7 @@ def edit_tool():
 
 @app.route('/admin/delete-tool', methods=['POST'])
 def delete_tool():
-    if not get_user()['is_admin']:
+    if not get_user().is_admin:
         return redirect(url_for('dashboard', result=json.dumps({
             'success': False,
             'message': 'You do not have permission to access this page.'
@@ -237,21 +238,18 @@ def return_tool():
     return redirect(url_for('dashboard'))
 
 
-def get_users():
+def get_users() -> Dict[int, User]:
     g.db.cursor.execute('SELECT id, name, is_admin, is_user FROM users')
     return {
-        row[0]: {
-            'id': row[0],
-            'name': row[1],
-            'is_admin': bool(row[2]),
-            'is_user': bool(row[3])
-        }
+        row[0]: User.from_row(row)
         for row in g.db.cursor.fetchall()
     }
 
-def get_user():
+def get_user() -> User:
     # TODO: get the user from the request
-    return get_users()[1]
+    return User.from_row(
+        g.db.cursor.execute(f"SELECT {', '.join(User.default_projection())} from users where name = 'Hugo'").fetchone()
+    )
 
 def get_inventory():
     g.db.cursor.execute('''
@@ -287,7 +285,7 @@ def get_my_tools():
     return {
         tool_id: tool
         for tool_id, tool in get_signed_out_tools().items()
-        if tool['status']['signed_out'] and tool['status']['holder']['id'] == get_user()['id']
+        if tool['status']['signed_out'] and tool['status']['holder']['id'] == get_user().user_id
     }
 
 
