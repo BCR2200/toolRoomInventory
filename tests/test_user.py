@@ -4,7 +4,7 @@ from server.db.db import DB
 from server.user import User
 
 
-class TestUserFromRowDatabase(unittest.TestCase):
+class TestUser(unittest.TestCase):
     def setUp(self):
         self.db = DB(":memory:", auto_migrate=True)
         self.db.connect()
@@ -30,13 +30,12 @@ class TestUserFromRowDatabase(unittest.TestCase):
             row = self.db.cursor.fetchone()
             # Use from_row on the retrieved data
             user = User.from_row(row)
-            self.assertEqual(user.user_id, user_id)
-            self.assertEqual(user.name, name)
-            self.assertEqual(user.is_admin, is_admin)
-            self.assertEqual(user.is_user, is_user)
+            self.assertEqual(user_id, user.user_id)
+            self.assertEqual(name, user.name)
+            self.assertEqual(is_admin, user.is_admin)
+            self.assertEqual(is_user, user.is_user)
 
     def test_from_row_with_invalid_data_type(self):
-        # Insert invalid data (non-integer user_id)
         self.db.cursor.execute("INSERT INTO users VALUES (?, ?, ?, ?)", (1, "Bob", 1, 0))
         self.db.conn.commit()
         self.db.cursor.execute("SELECT 'invalid' as id, name, is_admin, is_user FROM users WHERE name = ?", ("Bob",))
@@ -69,11 +68,11 @@ class TestUserFromRowDatabase(unittest.TestCase):
         self.db.cursor.execute("SELECT *, 'extra_field' as foo FROM users WHERE id = ?", (3,))
         row = self.db.cursor.fetchone()
         # Verify from_row works with just the required fields
-        user = User.from_row(row[:4])  # Pass only the first 4 fields
-        self.assertEqual(user.user_id, 3)
-        self.assertEqual(user.name, "Dana")
-        self.assertEqual(user.is_admin, False)
-        self.assertEqual(user.is_user, True)
+        user = User.from_row(row)
+        self.assertEqual(3, user.user_id)
+        self.assertEqual("Dana", user.name)
+        self.assertEqual(False, user.is_admin)
+        self.assertEqual(True, user.is_user)
 
 
 if __name__ == "__main__":
