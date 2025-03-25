@@ -17,18 +17,18 @@ class TestTool(unittest.TestCase):
     def test_from_row_with_valid_data(self):
         self.db.cursor.execute('INSERT INTO users (id, name, is_admin, is_user) VALUES (?, ?, ?, ?)', (1, 'Alice', True, False))
         values = [
-            (1, 'hammer', 'hits stuff', None, False, None, None),
-            (2, 'Jake', 'lmao', 'jake.png', True, 1, datetime.datetime.now(tz=datetime.timezone.utc)),
+            (1, 'hammer', None, 'hits stuff', None, False, None, None),
+            (2, 'Jake', '1234asdf', 'lmao', 'jake.png', True, 1, datetime.datetime.now(tz=datetime.timezone.utc)),
         ]
-        for tool_id, name, description, picture, signed_out, holder_id, signed_out_since in values:
+        for tool_id, name, barcode, description, picture, signed_out, holder_id, signed_out_since in values:
             # Insert a valid tool record
             self.db.cursor.execute('''
             INSERT INTO inventory 
-            (id, name, description, picture, signed_out, holder_id, signed_out_since) 
-            VALUES (?, ?, ?, ?, ?, ?, ?)
-            ''', (tool_id, name, description, picture, signed_out, holder_id, signed_out_since.isoformat() if signed_out_since else None) )
+            (id, name, barcode, description, picture, signed_out, holder_id, signed_out_since) 
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+            ''', (tool_id, name, barcode, description, picture, signed_out, holder_id, signed_out_since.isoformat() if signed_out_since else None) )
         self.db.conn.commit()
-        for tool_id, name, description, picture, signed_out, holder_id, signed_out_since in values:
+        for tool_id, name, barcode, description, picture, signed_out, holder_id, signed_out_since in values:
             # Retrieve the inserted record
             self.db.cursor.execute("SELECT * FROM inventory WHERE id = ?", (tool_id,))
             row = self.db.cursor.fetchone()
@@ -36,6 +36,7 @@ class TestTool(unittest.TestCase):
             tool = Tool.from_row(row)
             self.assertEqual(tool_id, tool.tool_id)
             self.assertEqual(name, tool.name)
+            self.assertEqual(barcode, tool.barcode)
             self.assertEqual(description, tool.description)
             if picture:
                 picture = Path(picture)
@@ -48,7 +49,7 @@ class TestTool(unittest.TestCase):
         self.db.cursor.execute('INSERT INTO inventory (id, name, description, signed_out) VALUES (?, ?, ?, ?)',
                                (1, "Drill", "A powerful handheld drill", False))
         self.db.conn.commit()
-        self.db.cursor.execute("SELECT 'invalid' as id, name, description, picture, signed_out, holder_id, signed_out_since FROM inventory WHERE name = ?", ("Drill",))
+        self.db.cursor.execute("SELECT 'invalid' as id, name, barcode, description, picture, signed_out, holder_id, signed_out_since FROM inventory WHERE name = ?", ("Drill",))
         row = self.db.cursor.fetchone()
         # Test that from_row raises ValueError
         with self.assertRaises(ValueError):
@@ -73,8 +74,8 @@ class TestTool(unittest.TestCase):
 
     def test_from_row_with_extra_fields(self):
         # Insert a row with extra fields
-        self.db.cursor.execute("INSERT INTO inventory VALUES (?, ?, ?, ?, ?, ?, ?)",
-                               (5, "Wrench", "A sturdy wrench", "wrench.png", False, None, None))
+        self.db.cursor.execute("INSERT INTO inventory VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+                               (5, "Wrench", "asdf1234", "A sturdy wrench", "wrench.png", False, None, None))
         self.db.conn.commit()
         self.db.cursor.execute("SELECT *, 'extra_field' as foo FROM inventory WHERE id = ?", (5,))
         row = self.db.cursor.fetchone()
@@ -82,6 +83,7 @@ class TestTool(unittest.TestCase):
         tool = Tool.from_row(row)
         self.assertEqual(5, tool.tool_id)
         self.assertEqual("Wrench", tool.name)
+        self.assertEqual("asdf1234", tool.barcode)
         self.assertEqual("A sturdy wrench", tool.description)
         self.assertEqual(Path("wrench.png"), tool.picture)
         self.assertEqual(False, tool.signed_out)

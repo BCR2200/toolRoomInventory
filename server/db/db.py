@@ -25,6 +25,7 @@ class DB:
         '''CREATE TABLE IF NOT EXISTS inventory (
             id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
             name TEXT NOT NULL,
+            barcode TEXT,
             description TEXT,
             picture TEXT,
             signed_out BOOLEAN NOT NULL DEFAULT 0,

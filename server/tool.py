@@ -4,10 +4,12 @@ from typing import Optional, Self
 
 
 class Tool:
-    def __init__(self, tool_id: int, name: str, description: str, picture: Optional[Path],
-                 signed_out: bool, holder_id: int, signed_out_since: datetime.datetime):
+    def __init__(self, tool_id: int, name: str, barcode: Optional[str],
+                 description: str, picture: Optional[Path], signed_out: bool,
+                 holder_id: int, signed_out_since: datetime.datetime):
         self.tool_id = tool_id
         self.name = name
+        self.barcode = barcode
         self.description = description
         self.picture = picture
         self.signed_out = signed_out
@@ -15,30 +17,40 @@ class Tool:
         self.signed_out_since = signed_out_since
 
     def __repr__(self):
-        return f"Tool(tool_id={self.tool_id}, name={self.name}, description={self.description}, picture={self.picture}, signed_out={self.signed_out}, holder_id={self.holder_id}, signed_out_since={self.signed_out_since})"
+        return (f"Tool(tool_id={self.tool_id}, name={self.name}, barcode={self.barcode}, "
+                f"description={self.description}, picture={self.picture}, "
+                f"signed_out={self.signed_out}, holder_id={self.holder_id}, "
+                f"signed_out_since={self.signed_out_since})")
 
     @property
     def signed_out_since_human(self):
         return self.signed_out_since.strftime("%Y-%m-%d %H:%M")
+
+    @property
+    def picture_url(self):
+        if self.picture is None:
+            return None
+        # TODO const refactor
+        return f"/static/tool_images/{self.picture}"
 
     @classmethod
     def from_row(cls, row) -> Self:
         if row is None:
             raise ValueError('No row returned')
         path = None
-        if row[3] is not None:
-            path = Path(row[3])
+        if row[4] is not None:
+            path = Path(row[4])
         holder_id = None
-        if row[5] is not None:
-            holder_id = int(row[5])
-        since = None
         if row[6] is not None:
-            since = cls.parse_db_signed_out_since(row[6])
-        return cls(int(row[0]), row[1], row[2], path, bool(row[4]), holder_id, since)
+            holder_id = int(row[6])
+        since = None
+        if row[7] is not None:
+            since = cls.parse_db_signed_out_since(row[7])
+        return cls(int(row[0]), row[1], row[2], row[3], path, bool(row[5]), holder_id, since)
 
     @staticmethod
     def default_projection() -> list[str]:
-        return ["id", "name", "is_admin", "is_user"]
+        return ["id", "name", "barcode", "description", "picture", "signed_out", "holder_id", "signed_out_since"]
 
     @staticmethod
     def db_format_signed_out_since(since: datetime.datetime) -> str:
