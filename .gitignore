@@ -1,3 +1,5 @@
 .idea/
 .venv/
-*.db
+/data/inventory.db-shm
+/data/inventory.db-wal
+/data/inventory.db
