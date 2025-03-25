@@ -30,13 +30,13 @@
                                         {% endif %}
                                         <div class="card-body">
                                             <h5 class="card-title">{{ tool.name }}</h5>
-                                            <p class="card-text">ID: {{ tool.id }}</p>
+                                            <p class="card-text">ID: {{ tool.tool_id }}</p>
                                             {% if tool.description %}
                                                 <p class="card-text">{{ tool.description }}</p>
                                             {% endif %}
                                             {% if user.is_user %}
                                                 <form method="POST" action="{{ url_for('borrow_tool') }}">
-                                                    <input type="hidden" name="tool_id" value="{{ tool.id }}">
+                                                    <input type="hidden" name="tool_id" value="{{ tool.tool_id }}">
                                                     <input type="hidden" name="user_id" value="{{ user.user_id }}">
                                                     <button type="submit" class="btn btn-primary">Borrow Tool</button>
                                                 </form>
@@ -70,14 +70,14 @@
                                         {% endif %}
                                         <div class="card-body">
                                             <h5 class="card-title">{{ tool.name }}</h5>
-                                            <p class="card-text">ID: {{ tool.id }}</p>
+                                            <p class="card-text">ID: {{ tool.tool_id }}</p>
                                             {% if tool.description %}
                                                 <p class="card-text">{{ tool.description }}</p>
                                             {% endif %}
-                                            <p class="card-text">Borrowed by: {{ users[tool.status.holder.id].name }}</p>
-                                            <p class="card-text">Borrowed on: {{ tool.status.holder.since }}</p>
+                                            <p class="card-text">Borrowed by: {{ users[tool.holder_id].name }}</p>
+                                            <p class="card-text">Borrowed on: {{ tool.signed_out_since_human }}</p>
                                             <form method="POST" action="{{ url_for('return_tool') }}">
-                                                <input type="hidden" name="tool_id" value="{{ tool.id }}">
+                                                <input type="hidden" name="tool_id" value="{{ tool.tool_id }}">
                                                 <input type="hidden" name="user_id" value="{{ user.user_id }}">
                                                 <button type="submit" class="btn btn-success">Return Tool</button>
                                             </form>

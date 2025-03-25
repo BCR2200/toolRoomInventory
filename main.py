@@ -8,6 +8,7 @@ from typing import Dict
 from flask import Flask, render_template, request, redirect, url_for, g
 from server.db.db import DB
 from server.db.helpers import create_sample_data, drop_all_data
+from server.tool import Tool
 from server.user import User
 
 app = Flask(__name__, static_folder='app/public_static', static_url_path='/static')
@@ -251,41 +252,29 @@ def get_user() -> User:
         g.db.cursor.execute(f"SELECT {', '.join(User.default_projection())} from users where name = 'Hugo'").fetchone()
     )
 
-def get_inventory():
+def get_inventory() -> Dict[int, Tool]:
     g.db.cursor.execute('''
         SELECT id, name, description, picture, signed_out, holder_id, signed_out_since 
         FROM inventory
     ''')
     return {
-        row[0]: {
-            'id': row[0],
-            'name': row[1],
-            'description': row[2],
-            'picture': row[3],
-            'status': {
-                'signed_out': bool(row[4]),
-                'holder': {
-                    'id': row[5],
-                    'since': row[6]
-                } if row[5] is not None else None
-            }
-        }
+        row[0]: Tool.from_row(row)
         for row in g.db.cursor.fetchall()
     }
 
-def get_available_tools():
-    return {tool_id: tool for tool_id, tool in get_inventory().items() if not tool['status']['signed_out']}
+def get_available_tools() -> Dict[int, Tool]:
+    return {tool_id: tool for tool_id, tool in get_inventory().items() if not tool.signed_out}
 
 
-def get_signed_out_tools():
-    return {tool_id: tool for tool_id, tool in get_inventory().items() if tool['status']['signed_out']}
+def get_signed_out_tools() -> Dict[int, Tool]:
+    return {tool_id: tool for tool_id, tool in get_inventory().items() if tool.signed_out}
 
 
-def get_my_tools():
+def get_my_tools() -> Dict[int, Tool]:
     return {
         tool_id: tool
         for tool_id, tool in get_signed_out_tools().items()
-        if tool['status']['signed_out'] and tool['status']['holder']['id'] == get_user().user_id
+        if tool.signed_out and tool.holder_id == get_user().user_id
     }
 
 

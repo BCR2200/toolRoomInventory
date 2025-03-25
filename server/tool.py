@@ -17,6 +17,10 @@ class Tool:
     def __repr__(self):
         return f"Tool(tool_id={self.tool_id}, name={self.name}, description={self.description}, picture={self.picture}, signed_out={self.signed_out}, holder_id={self.holder_id}, signed_out_since={self.signed_out_since})"
 
+    @property
+    def signed_out_since_human(self):
+        return self.signed_out_since.strftime("%Y-%m-%d %H:%M")
+
     @classmethod
     def from_row(cls, row) -> Self:
         if row is None:
