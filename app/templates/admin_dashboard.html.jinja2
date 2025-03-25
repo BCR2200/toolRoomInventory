@@ -42,7 +42,7 @@
                 <table class="table">
                     <thead>
                         <tr>
-                            <th>ID</th>
+                            <th>Barcode</th>
                             <th>Name</th>
                             <th>Description</th>
                             <th>Status</th>
@@ -52,7 +52,7 @@
                     <tbody>
                         {% for id, tool in tools.items() %}
                             <tr>
-                                <td>{{ tool.tool_id }}</td>
+                                <td>{{ tool.barcode }}</td>
                                 <td>{{ tool.name }}</td>
                                 <td>{{ tool.description }}</td>
                                 <td>

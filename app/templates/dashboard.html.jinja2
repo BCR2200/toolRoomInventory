@@ -25,12 +25,12 @@
                             {% for id, tool in available_tools.items() %}
                                 <div class="col-md-6 mb-3">
                                     <div class="card">
-                                        {% if tool.picture %}
-                                            <img src="{{ url_for('static', filename=tool.picture ) }}" class="card-img-top" alt="{{ tool.name }}">
+                                        {% if tool.picture_url %}
+                                            <img src="{{ url_for('static', filename=tool.picture_url ) }}" class="card-img-top" alt="{{ tool.name }}">
                                         {% endif %}
                                         <div class="card-body">
                                             <h5 class="card-title">{{ tool.name }}</h5>
-                                            <p class="card-text">ID: {{ tool.tool_id }}</p>
+                                            <p class="card-text">Barcode: {{ tool.barcode }}</p>
                                             {% if tool.description %}
                                                 <p class="card-text">{{ tool.description }}</p>
                                             {% endif %}
@@ -65,12 +65,12 @@
                             {% for id, tool in my_tools.items() %}
                                 <div class="col-md-6 mb-3">
                                     <div class="card">
-                                        {% if tool.picture %}
-                                            <img src="{{ url_for('static', filename=tool.picture ) }}" class="card-img-top" alt="{{ tool.name }}">
+                                        {% if tool.picture_url %}
+                                            <img src="{{ url_for('static', filename=tool.picture_url ) }}" class="card-img-top" alt="{{ tool.name }}">
                                         {% endif %}
                                         <div class="card-body">
                                             <h5 class="card-title">{{ tool.name }}</h5>
-                                            <p class="card-text">ID: {{ tool.tool_id }}</p>
+                                            <p class="card-text">Barcode: {{ tool.barcode }}</p>
                                             {% if tool.description %}
                                                 <p class="card-text">{{ tool.description }}</p>
                                             {% endif %}

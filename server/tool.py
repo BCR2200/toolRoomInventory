@@ -31,7 +31,7 @@ class Tool:
         if self.picture is None:
             return None
         # TODO const refactor
-        return f"/static/tool_images/{self.picture}"
+        return f"tool_images/{self.picture}"
 
     @classmethod
     def from_row(cls, row) -> Self:
