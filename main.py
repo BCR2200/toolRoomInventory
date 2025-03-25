@@ -79,7 +79,9 @@ def add_tool():
     picture_path = None
     # Handle picture upload if provided
     if 'picture' in request.files:
-        picture_path = save_tool_picture().as_posix()
+        pic = request.files['picture']
+        if pic.filename != '' and pic.content_length != 0:
+            picture_path = save_tool_picture().as_posix()
 
     # Insert new tool
     g.db.cursor.execute('''
