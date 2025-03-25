@@ -79,7 +79,7 @@ def add_tool():
     picture_path = None
     # Handle picture upload if provided
     if 'picture' in request.files:
-        picture_path = save_tool_picture()
+        picture_path = save_tool_picture().as_posix()
 
     # Insert new tool
     g.db.cursor.execute('''
@@ -111,7 +111,7 @@ def edit_tool():
     picture_path = None
     # Handle picture upload if provided
     if 'picture' in request.files:
-        picture_path = save_tool_picture()
+        picture_path = save_tool_picture().as_posix()
 
     # Start transaction with SERIALIZABLE isolation
     g.db.cursor.execute('BEGIN IMMEDIATE TRANSACTION')
@@ -139,7 +139,7 @@ def edit_tool():
         })))
     if old_picture_path:
         # Clean up old picture
-        sanitized_old_path = ensure_path_in_base(TOOL_IMAGES_PATH, old_picture_path)
+        sanitized_old_path = ensure_path_in_base(TOOL_IMAGES_PATH, TOOL_IMAGES_PATH / Path(old_picture_path))
         sanitized_old_path.unlink()
         app.logger.debug(f"Old picture deleted (ID: {tool_id}): {sanitized_old_path}")
     app.logger.info(f"Tool updated: {name} (ID: {tool_id})")
@@ -174,7 +174,7 @@ def delete_tool():
         })))
     if old_picture_path:
         # Clean up old picture
-        sanitized_old_path = ensure_path_in_base(TOOL_IMAGES_PATH, old_picture_path)
+        sanitized_old_path = ensure_path_in_base(TOOL_IMAGES_PATH, TOOL_IMAGES_PATH / Path(old_picture_path))
         sanitized_old_path.unlink()
         app.logger.debug(f"Old picture deleted (ID: {tool_id}): {sanitized_old_path}")
     app.logger.info(f"Tool deleted: {tool} (ID: {tool_id})")
@@ -240,7 +240,7 @@ def return_tool():
 
 
 def get_users() -> Dict[int, User]:
-    g.db.cursor.execute('SELECT id, name, is_admin, is_user FROM users')
+    g.db.cursor.execute(f'SELECT {', '.join(User.default_projection())} FROM users')
     return {
         row[0]: User.from_row(row)
         for row in g.db.cursor.fetchall()
@@ -253,8 +253,8 @@ def get_user() -> User:
     )
 
 def get_inventory() -> Dict[int, Tool]:
-    g.db.cursor.execute('''
-        SELECT id, name, description, picture, signed_out, holder_id, signed_out_since 
+    g.db.cursor.execute(f'''
+        SELECT {', '.join(Tool.default_projection())} 
         FROM inventory
     ''')
     return {
@@ -286,7 +286,7 @@ def save_tool_picture():
         filename = uuid.uuid4().hex
         final_path = sanitize_path(TOOL_IMAGES_PATH, filename)
         picture.save(final_path)
-        return final_path
+        return final_path.relative_to(TOOL_IMAGES_PATH)
 
 
 def sanitize_path(base_path, path, allow_subdirs:bool = False):
