@@ -67,6 +67,18 @@ def admin_dashboard():
                            tools=get_inventory())
 
 
+@app.route('/tool/<tool_id>')
+def tool_detail(tool_id):
+    user = get_user()
+    tool = get_inventory().get(int(tool_id))
+    if tool is None:
+        return redirect(url_for('dashboard', result=json.dumps({
+            'success': False,
+            'message': f"Tool with ID {tool_id} does not exist."
+        })))
+    return render_template('tool_detail.html.jinja2', tool=tool, user=user, users=get_users())
+
+
 @app.route('/admin/add-tool', methods=['POST'])
 def add_tool():
     if not get_user().is_admin:

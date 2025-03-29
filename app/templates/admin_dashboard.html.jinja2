@@ -1,6 +1,6 @@
 {% extends "base.html.jinja2" %}
 
-{% block title %}Tool Room Inventory - Admin Dashboard{% endblock %}
+{% block title %}TRI - Admin Dashboard{% endblock %}
 
 {% block nav_items %}
     <a class="nav-link" href="{{ url_for('dashboard') }}">Main Dashboard</a>
@@ -57,7 +57,7 @@
                         {% for id, tool in tools.items() %}
                             <tr>
                                 <td>{{ tool.barcode }}</td>
-                                <td>{{ tool.name }}</td>
+                                <td><a href="{{ url_for('tool_detail', tool_id=tool.tool_id) }}">{{ tool.name }}</a></td>
                                 <td>{{ tool.description }}</td>
                                 <td>
                                     {% if tool.signed_out %}

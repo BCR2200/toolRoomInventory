@@ -1,6 +1,6 @@
 {% extends "base.html.jinja2" %}
 
-{% block title %}Tool Room Inventory - Dashboard{% endblock %}
+{% block title %}TRI - Dashboard{% endblock %}
 
 {% block content %}
     <div class="toast-container position-fixed top-0 end-0 p-3">
@@ -29,7 +29,7 @@
                                             <img src="{{ url_for('static', filename=tool.picture_url ) }}" class="card-img-top" alt="{{ tool.name }}">
                                         {% endif %}
                                         <div class="card-body">
-                                            <h5 class="card-title">{{ tool.name }}</h5>
+                                            <h5 class="card-title"><a href="{{ url_for('tool_detail', tool_id=tool.tool_id) }}">{{ tool.name }}</a></h5>
                                             <p class="card-text">Barcode: {{ tool.barcode }}</p>
                                             {% if tool.description %}
                                                 <p class="card-text">{{ tool.description }}</p>
@@ -69,13 +69,12 @@
                                             <img src="{{ url_for('static', filename=tool.picture_url ) }}" class="card-img-top" alt="{{ tool.name }}">
                                         {% endif %}
                                         <div class="card-body">
-                                            <h5 class="card-title">{{ tool.name }}</h5>
+                                            <h5 class="card-title"><a href="{{ url_for('tool_detail', tool_id=tool.tool_id) }}">{{ tool.name }}</a></h5>
                                             <p class="card-text">Barcode: {{ tool.barcode }}</p>
                                             {% if tool.description %}
                                                 <p class="card-text">{{ tool.description }}</p>
                                             {% endif %}
-                                            <p class="card-text">Borrowed by: {{ users[tool.holder_id].name }}</p>
-                                            <p class="card-text">Borrowed on: {{ tool.signed_out_since_human }}</p>
+                                            <p class="card-text">Borrowed by: {{ users[tool.holder_id].name }} on {{ tool.signed_out_since_human }}</p>
                                             <form method="POST" action="{{ url_for('return_tool') }}">
                                                 <input type="hidden" name="tool_id" value="{{ tool.tool_id }}">
                                                 <input type="hidden" name="user_id" value="{{ user.user_id }}">
