@@ -27,6 +27,13 @@ class Tool:
         return self.signed_out_since.strftime("%Y-%m-%d %H:%M")
 
     @property
+    def barcode_url(self):
+        if self.barcode is None:
+            return None
+        # TODO const refactor
+        return f"tool_images/qr_{self.barcode}.png"
+
+    @property
     def picture_url(self):
         if self.picture is None:
             return None

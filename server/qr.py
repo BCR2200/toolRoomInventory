@@ -20,7 +20,6 @@ def generate_qr_code(data, filename: Path):
     qr_image = qr.make_image(fill_color="black", back_color="white")
 
     # Save the image
-    filename.touch()
     with open(filename, "wb") as f:
         qr_image.format = "PNG"
         qr_image.save(f)
