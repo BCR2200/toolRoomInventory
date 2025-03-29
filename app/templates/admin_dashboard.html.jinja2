@@ -29,7 +29,32 @@
                 </div>
                 <div class="mb-3 form-check">
                     <input type="checkbox" class="form-check-input" id="allocate_barcode" name="allocate_barcode" checked>
+                    {# Use a script here rather than data-bs-toggle, because the latter seems to become inconsistent #}
+                    {# when clicked again while it is still transitioning. #}
+                    <script>
+                        document.addEventListener("DOMContentLoaded", function () {
+                            const allocateBarcodeCheckbox = document.getElementById("allocate_barcode");
+                            allocateBarcodeCheckbox.checked = true;
+                            const barcodeCollapse = document.getElementById("barcodeCollapse");
+
+                            allocateBarcodeCheckbox.addEventListener("change", function () {
+                                console.log("glazed: " + allocateBarcodeCheckbox.checked);
+                                if (allocateBarcodeCheckbox.checked) {
+                                    barcodeCollapse.classList.remove("show");
+                                } else {
+                                    barcodeCollapse.classList.add("show");
+                                }
+                            });
+                        });
+                    </script>
+
                     <label class="form-check-label" for="allocate_barcode">Allocate new barcode</label>
+                </div>
+                <div class="mb-3 collapse" id="barcodeCollapse">
+                    <label for="barcode" class="form-label">Barcode</label>
+                    <input type="text" class="form-control" id="barcode" name="barcode" pattern="\d*"
+                           title="Please enter a valid number.">
+
                 </div>
                 <button type="submit" class="btn btn-primary">Add Tool</button>
             </form>
@@ -97,6 +122,10 @@
                                                 <div class="mb-3">
                                                     <label for="edit_picture{{ tool.tool_id }}" class="form-label">Picture</label>
                                                     <input type="file" class="form-control" id="edit_picture{{ tool.tool_id }}" name="picture">
+                                                </div>
+                                                <div class="mb-3 form-check">
+                                                    <input type="checkbox" class="form-check-input" id="allocate_barcode" name="allocate_barcode" {{ "checked" if not tool.barcode else "" }}>
+                                                    <label class="form-check-label" for="allocate_barcode">Allocate new barcode</label>
                                                 </div>
                                                 <button type="submit" class="btn btn-primary">Save Changes</button>
                                             </form>

@@ -90,6 +90,7 @@ def add_tool():
     name = request.form.get('name')
     description = request.form.get('description')
     allocate_barcode = request.form.get('allocate_barcode')
+    barcode = request.form.get('barcode') or None
     picture_path = None
     # Handle picture upload if provided
     if 'picture' in request.files:
@@ -100,12 +101,13 @@ def add_tool():
     # Start exclusive transaction so that we know we allocate a unique barcode
     g.db.cursor.execute('BEGIN EXCLUSIVE TRANSACTION')
     try:
-        barcode = None
         if allocate_barcode:
+            # Select the lowest open ID in the range [1, inf)
             g.db.cursor.execute('''
-                SELECT MIN(barcode + 1) 
-                FROM inventory 
-                WHERE (barcode + 1) NOT IN (SELECT barcode FROM inventory)
+                SELECT MIN(t1.barcode + 1)
+                FROM inventory AS t1
+                LEFT JOIN inventory AS t2 ON t1.barcode + 1 = t2.barcode
+                WHERE t2.barcode IS NULL
             ''')
             barcode = g.db.cursor.fetchone()[0] or 1
             # Generate and save QR code image
@@ -116,6 +118,18 @@ def add_tool():
                 f"Generating QR code for barcode {barcode} and saving to {qr_path}"
             )
             generate_qr_code(str(barcode), qr_path)
+        elif barcode:
+            # Make sure the barcode is not already allocated
+            g.db.cursor.execute('SELECT name FROM inventory WHERE barcode = ?', (barcode,))
+            results = g.db.cursor.fetchall()
+            if len(results) > 0:
+                other = results[0]
+                e_msg = f'Error adding tool: barcode already in use by: {other[0]}'
+                app.logger.error(e_msg)
+                return redirect(url_for('admin_dashboard', result=json.dumps({
+                    'success': False,
+                    'message': e_msg
+                })))
 
         # Insert new tool
         g.db.cursor.execute('''
