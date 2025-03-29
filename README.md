@@ -31,6 +31,14 @@ tools, manage borrowing, and maintain inventory efficiently.
    ```bash
    python main.py
    ```
+   
+## Running Tests
+
+To run all Python tests for the project, ensure you have activated the virtual environment first, then use:
+
+```bash
+python -m unittest discover
+```
 
 ## Requirements
 - Python>=3.13
