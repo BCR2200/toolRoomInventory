@@ -49,17 +49,17 @@ def create_sample_data(db_instance: DB):
             user_id = cursor.fetchone()[0]
             user_ids.append(user_id)
         tools = [
-            ('Tool 1', 'This is tool 1.', 'jake.png', True, user_ids[0], datetime.datetime.now(tz=datetime.timezone.utc)),
-            ('Tool 2', 'This is tool 2.', None, True, user_ids[0], datetime.datetime.now(tz=datetime.timezone.utc)),
-            ('Tool 3', 'This is tool 3.', None, True, user_ids[1], datetime.datetime.now(tz=datetime.timezone.utc)),
-            ('Tool 4', 'This is tool 4.', None, True, user_ids[2], datetime.datetime.now(tz=datetime.timezone.utc)),
-            ('Tool 5', 'This is tool 5.', None, False, None, None),
-            ('Tool 6', 'This is tool 6.', None, False, None, None),
+            ('Tool 1', '2', 'This is tool 1.', 'jake.png', True, user_ids[0], datetime.datetime.now(tz=datetime.timezone.utc)),
+            ('Tool 2', None, 'This is tool 2.', None, True, user_ids[0], datetime.datetime.now(tz=datetime.timezone.utc)),
+            ('Tool 3', '3', 'This is tool 3.', None, True, user_ids[1], datetime.datetime.now(tz=datetime.timezone.utc)),
+            ('Tool 4', '5', 'This is tool 4.', None, True, user_ids[2], datetime.datetime.now(tz=datetime.timezone.utc)),
+            ('Tool 5', None, 'This is tool 5.', None, False, None, None),
+            ('Tool 6', 69, 'This is tool 6.', None, False, None, None),
         ]
         for tool in tools:
             cursor.execute(
-                'INSERT INTO inventory (name, description, picture, signed_out, holder_id, signed_out_since) '
-                'VALUES (?, ?, ?, ?, ?, ?)',
+                'INSERT INTO inventory (name, barcode, description, picture, signed_out, holder_id, signed_out_since) '
+                'VALUES (?, ?, ?, ?, ?, ?, ?)',
                 tool
             )
 

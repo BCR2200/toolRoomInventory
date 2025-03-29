@@ -351,6 +351,22 @@ def ensure_path_in_base(base_path, path, allow_subdirs:bool = False):
     return test_path
 
 
+def ensure_all_have_barcode(db: DB):
+    # Find all tools with a barcode
+    db.cursor.execute('''
+        SELECT id, barcode
+        FROM inventory 
+        WHERE barcode IS NOT NULL
+    ''')
+    tools_with_barcodes = db.cursor.fetchall()
+
+    for (tool_id, barcode) in tools_with_barcodes:
+        # Ensure that each has a barcode file
+        img_path = Path(TOOL_IMAGES_PATH) / f"qr_{barcode}.png"
+        if not img_path.exists():
+            generate_qr_code(str(barcode), img_path)
+
+
 DB_PATH = Path('data/inventory.db')
 
 
@@ -364,6 +380,7 @@ def main():
         db.self_test()
         drop_all_data(db)
         create_sample_data(db)
+        ensure_all_have_barcode(db)
 
     app.run(host='::1', port=5000, debug=True)
 
