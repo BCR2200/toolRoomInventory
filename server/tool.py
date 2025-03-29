@@ -24,7 +24,7 @@ class Tool:
 
     @property
     def signed_out_since_human(self):
-        return self.signed_out_since.strftime("%Y-%m-%d %H:%M")
+        return self.signed_out_since.astimezone().strftime("%Y-%m-%d %H:%M")
 
     @property
     def barcode_url(self):
