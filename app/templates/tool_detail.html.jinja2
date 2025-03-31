@@ -19,7 +19,7 @@
                 <div class="col-md-4">
                     {% if tool.picture_url %}
                         <img style="object-fit: contain; width: 100%;"
-                             src="{{ url_for('static', filename=tool.picture_url) }}"
+                             src="{{ url_for('tool_image', img=tool.picture_url) }}"
                              class="img-fluid rounded" alt="{{ tool.name }}">
                     {% else %}
                         <div class="text-center p-4 bg-light rounded">
@@ -30,11 +30,11 @@
                     {% if tool.barcode_url %}
                         <div class="mt-3 text-center">
                             <img style="object-fit: contain; width: 100%;"
-                                 src="{{ url_for('static', filename=tool.barcode_url) }}"
+                                 src="{{ url_for('tool_barcode', img=tool.barcode_url) }}"
                                  class="img-fluid" alt="Tool Barcode" id="barcode-img">
                             <div class="mt-2">
                                 <small class="text-muted">Barcode: {{ tool.barcode }}</small>
-                                <button onclick="printImage('{{ url_for('static', filename=tool.barcode_url) }}', 'Tool Barcode')">Print Image</button>
+                                <button onclick="printImage('{{ url_for('tool_barcode', img=tool.barcode_url) }}', 'Tool Barcode')">Print Image</button>
                             </div>
                         </div>
                     {% endif %}

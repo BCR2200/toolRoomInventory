@@ -3,4 +3,5 @@
 /data/inventory.db-shm
 /data/inventory.db-wal
 /data/inventory.db
-/app/public_static/tool_images/qr_*.png
+/data/tool_images/*
+/data/tool_barcodes/*

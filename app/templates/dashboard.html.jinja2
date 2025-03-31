@@ -17,7 +17,7 @@
                                 <div class="col-md-6 mb-3">
                                     <div class="card">
                                         {% if tool.picture_url %}
-                                            <img src="{{ url_for('static', filename=tool.picture_url ) }}" class="card-img-top" alt="{{ tool.name }}">
+                                            <img src="{{ url_for('tool_image', img=tool.picture_url) }}" class="card-img-top" alt="{{ tool.name }}">
                                         {% endif %}
                                         <div class="card-body">
                                             <h5 class="card-title"><a href="{{ url_for('tool_detail', tool_id=tool.tool_id) }}">{{ tool.name }}</a></h5>
@@ -57,7 +57,7 @@
                                 <div class="col-md-6 mb-3">
                                     <div class="card">
                                         {% if tool.picture_url %}
-                                            <img src="{{ url_for('static', filename=tool.picture_url ) }}" class="card-img-top" alt="{{ tool.name }}">
+                                            <img src="{{ url_for('tool_image', img=tool.picture_url) }}" class="card-img-top" alt="{{ tool.name }}">
                                         {% endif %}
                                         <div class="card-body">
                                             <h5 class="card-title"><a href="{{ url_for('tool_detail', tool_id=tool.tool_id) }}">{{ tool.name }}</a></h5>

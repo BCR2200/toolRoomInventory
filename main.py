@@ -1,11 +1,10 @@
 import datetime
 import json
 import logging
-import uuid
 from pathlib import Path
 from typing import Dict
 
-from flask import Flask, render_template, request, redirect, url_for, g
+from flask import Flask, render_template, request, redirect, url_for, g, send_from_directory
 from server.db.db import DB
 from server.db.helpers import create_sample_data, drop_all_data
 from server.qr import generate_qr_code
@@ -15,9 +14,12 @@ from server.user import User
 app = Flask(__name__, static_folder='app/public_static', static_url_path='/static')
 app.template_folder = 'app/templates'
 
-
-TOOL_IMAGES_PATH = Path(app.static_folder) / 'tool_images'
+DATA_PATH = Path('data')
+DB_PATH = DATA_PATH / 'inventory.db'
+TOOL_IMAGES_PATH = DATA_PATH / 'tool_images'
 TOOL_IMAGES_PATH.mkdir(exist_ok=True)
+TOOL_BARCODES_PATH = DATA_PATH / 'tool_barcodes'
+TOOL_BARCODES_PATH.mkdir(exist_ok=True)
 
 
 @app.before_request
@@ -42,6 +44,17 @@ def cleanup(response):
 def favicon():
     return redirect(url_for('static', filename='favicon.ico'))
 
+
+@app.route('/tool-image/<path:img>')
+def tool_image(img):
+    ensure_path_in_base(TOOL_IMAGES_PATH, TOOL_IMAGES_PATH / img)
+    return send_from_directory(TOOL_IMAGES_PATH, img)
+
+
+@app.route('/tool-barcode/<path:img>')
+def tool_barcode(img):
+    ensure_path_in_base(TOOL_BARCODES_PATH, TOOL_BARCODES_PATH / img)
+    return send_from_directory(TOOL_BARCODES_PATH, img)
 
 @app.route('/dashboard')
 def dashboard():
@@ -95,7 +108,7 @@ def add_tool():
     # Handle picture upload if provided
     if 'picture' in request.files:
         pic = request.files['picture']
-        if pic.filename != '' and pic.content_length != 0:
+        if pic.filename != '':
             picture_path = save_tool_picture().as_posix()
 
     # Start exclusive transaction so that we know we allocate a unique barcode
@@ -114,10 +127,10 @@ def add_tool():
             qr_filename = f"qr_{barcode}.png"
             qr_path = Path(TOOL_IMAGES_PATH) / qr_filename
             ensure_path_in_base(TOOL_IMAGES_PATH, qr_path)
+            ensure_barcode(barcode)
             app.logger.debug(
                 f"Generating QR code for barcode {barcode} and saving to {qr_path}"
             )
-            generate_qr_code(str(barcode), qr_path)
         elif barcode:
             # Make sure the barcode is not already allocated
             g.db.cursor.execute('SELECT name FROM inventory WHERE barcode = ?', (barcode,))
@@ -130,13 +143,17 @@ def add_tool():
                     'success': False,
                     'message': e_msg
                 })))
+            ensure_barcode(barcode)
+        tool = Tool(tool_id=None, name=name, barcode=barcode, description=description, picture=picture_path,
+                    signed_out=False, holder_id=None, signed_out_since=None)
+        row, projection = tool.to_row_and_projection()
 
         # Insert new tool
-        g.db.cursor.execute('''
-            INSERT INTO inventory (name, barcode, description, picture, signed_out, holder_id, signed_out_since)
-            VALUES (?, ?, ?, ?, 0, NULL, NULL)
+        g.db.cursor.execute(f'''
+            INSERT INTO inventory {projection[0]}
+            VALUES {projection[1]}
             RETURNING id
-        ''', (name, barcode, description, picture_path))
+        ''', row)
         new_id = g.db.cursor.fetchone()[0]
         g.db.conn.commit()
         app.logger.info(f"New tool added: {name} (ID: {new_id})")
@@ -166,14 +183,48 @@ def edit_tool():
     name = request.form.get('name')
     description = request.form.get('description')
     picture_path = None
+    allocate_barcode = request.form.get('allocate_barcode')
+    barcode = request.form.get('barcode') or None
     # Handle picture upload if provided
     if 'picture' in request.files:
-        picture_path = save_tool_picture().as_posix()
+        pic = request.files['picture']
+        if pic.filename != '':
+            picture_path = save_tool_picture().as_posix()
 
     # Start transaction with SERIALIZABLE isolation
     g.db.cursor.execute('BEGIN IMMEDIATE TRANSACTION')
     old_picture_path = None
     try:
+        if allocate_barcode:
+            # Select the lowest open ID in the range [1, inf)
+            g.db.cursor.execute('''
+                SELECT MIN(t1.barcode + 1)
+                FROM inventory AS t1
+                LEFT JOIN inventory AS t2 ON t1.barcode + 1 = t2.barcode
+                WHERE t2.barcode IS NULL
+            ''')
+            barcode = g.db.cursor.fetchone()[0] or 1
+            # Generate and save QR code image
+            qr_filename = f"qr_{barcode}.png"
+            qr_path = Path(TOOL_IMAGES_PATH) / qr_filename
+            ensure_path_in_base(TOOL_IMAGES_PATH, qr_path)
+            ensure_barcode(barcode)
+            app.logger.debug(
+                f"Generating QR code for barcode {barcode} and saving to {qr_path}"
+            )
+        elif barcode:
+            # Make sure the barcode is not already allocated
+            g.db.cursor.execute('SELECT name FROM inventory WHERE barcode = ?', (barcode,))
+            results = g.db.cursor.fetchall()
+            if len(results) > 0:
+                other = results[0]
+                e_msg = f'Error adding tool: barcode already in use by: {other[0]}'
+                app.logger.error(e_msg)
+                return redirect(url_for('admin_dashboard', result=json.dumps({
+                    'success': False,
+                    'message': e_msg
+                })))
+            ensure_barcode(barcode)
         # Get the current picture value
         g.db.cursor.execute('SELECT picture FROM inventory WHERE id = ?', (tool_id,))
         old_picture_path = g.db.cursor.fetchone()[0]
@@ -340,7 +391,7 @@ def save_tool_picture():
         return None
     picture = request.files['picture']
     if picture.filename:
-        filename = uuid.uuid4().hex
+        filename = picture.filename
         final_path = sanitize_path(TOOL_IMAGES_PATH, filename)
         picture.save(final_path)
         return final_path.relative_to(TOOL_IMAGES_PATH)
@@ -368,20 +419,20 @@ def ensure_path_in_base(base_path, path, allow_subdirs:bool = False):
 def ensure_all_have_barcode(db: DB):
     # Find all tools with a barcode
     db.cursor.execute('''
-        SELECT id, barcode
+        SELECT barcode
         FROM inventory 
         WHERE barcode IS NOT NULL
     ''')
     tools_with_barcodes = db.cursor.fetchall()
 
-    for (tool_id, barcode) in tools_with_barcodes:
-        # Ensure that each has a barcode file
-        img_path = Path(TOOL_IMAGES_PATH) / f"qr_{barcode}.png"
-        if not img_path.exists():
-            generate_qr_code(str(barcode), img_path)
+    for (barcode,) in tools_with_barcodes:
+        ensure_barcode(barcode)
 
 
-DB_PATH = Path('data/inventory.db')
+def ensure_barcode(barcode: str):
+    img_path = Path(TOOL_BARCODES_PATH) / f"qr_{barcode}.png"
+    if not img_path.exists():
+        generate_qr_code(str(barcode), img_path)
 
 
 def main():
