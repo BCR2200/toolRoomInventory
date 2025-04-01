@@ -16,9 +16,9 @@ app.template_folder = 'app/templates'
 
 DATA_PATH = Path('data')
 DB_PATH = DATA_PATH / 'inventory.db'
-TOOL_IMAGES_PATH = DATA_PATH / 'tool_images'
+TOOL_IMAGES_PATH = (DATA_PATH / 'tool_images').resolve()
 TOOL_IMAGES_PATH.mkdir(exist_ok=True)
-TOOL_BARCODES_PATH = DATA_PATH / 'tool_barcodes'
+TOOL_BARCODES_PATH = (DATA_PATH / 'tool_barcodes').resolve()
 TOOL_BARCODES_PATH.mkdir(exist_ok=True)
 
 
@@ -228,10 +228,7 @@ def edit_tool():
         g.db.conn.commit()
 
         if picture_path != old_picture_path and old_picture_path is not None:
-            # Clean up old picture
-            sanitized_old_path = ensure_path_in_base(TOOL_IMAGES_PATH, TOOL_IMAGES_PATH / Path(old_picture_path))
-            sanitized_old_path.unlink()
-            app.logger.debug(f"Old picture deleted (ID: {tool_id}): {sanitized_old_path}")
+            safe_unlink_tool_image(old_picture_path)
     except Exception as e:
         g.db.conn.rollback()
         e_msg = f'Error updating tool: {e}'
@@ -271,10 +268,7 @@ def delete_tool():
             'message': e_msg
         })))
     if old_picture_path:
-        # Clean up old picture
-        sanitized_old_path = ensure_path_in_base(TOOL_IMAGES_PATH, TOOL_IMAGES_PATH / Path(old_picture_path))
-        sanitized_old_path.unlink()
-        app.logger.debug(f"Old picture deleted (ID: {tool_id}): {sanitized_old_path}")
+        safe_unlink_tool_image(old_picture_path)
     app.logger.info(f"Tool deleted: {tool} (ID: {tool_id})")
     return redirect(url_for('admin_dashboard', result=json.dumps({
         'success': True,
@@ -426,6 +420,13 @@ def ensure_barcode(barcode: str):
             f"Generating QR code for barcode {barcode} and saving to {img_path}"
         )
         generate_qr_code(str(barcode), img_path)
+
+def safe_unlink_tool_image(tool_image: str):
+    if tool_image:
+        # Clean up old picture
+        sanitized_old_path = ensure_path_in_base(TOOL_IMAGES_PATH, TOOL_IMAGES_PATH / Path(tool_image))
+        sanitized_old_path.unlink()
+        app.logger.debug(f"Old picture deleted: {sanitized_old_path}")
 
 
 def main():
