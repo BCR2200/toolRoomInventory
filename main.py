@@ -124,13 +124,7 @@ def add_tool():
             ''')
             barcode = g.db.cursor.fetchone()[0] or 1
             # Generate and save QR code image
-            qr_filename = f"qr_{barcode}.png"
-            qr_path = Path(TOOL_IMAGES_PATH) / qr_filename
-            ensure_path_in_base(TOOL_IMAGES_PATH, qr_path)
             ensure_barcode(barcode)
-            app.logger.debug(
-                f"Generating QR code for barcode {barcode} and saving to {qr_path}"
-            )
         elif barcode:
             # Make sure the barcode is not already allocated
             g.db.cursor.execute('SELECT name FROM inventory WHERE barcode = ?', (barcode,))
@@ -182,18 +176,11 @@ def edit_tool():
     tool_id = int(request.form.get('tool_id'))
     name = request.form.get('name')
     description = request.form.get('description')
-    picture_path = None
     allocate_barcode = request.form.get('allocate_barcode')
     barcode = request.form.get('barcode') or None
-    # Handle picture upload if provided
-    if 'picture' in request.files:
-        pic = request.files['picture']
-        if pic.filename != '':
-            picture_path = save_tool_picture().as_posix()
 
     # Start transaction with SERIALIZABLE isolation
     g.db.cursor.execute('BEGIN IMMEDIATE TRANSACTION')
-    old_picture_path = None
     try:
         if allocate_barcode:
             # Select the lowest open ID in the range [1, inf)
@@ -205,38 +192,46 @@ def edit_tool():
             ''')
             barcode = g.db.cursor.fetchone()[0] or 1
             # Generate and save QR code image
-            qr_filename = f"qr_{barcode}.png"
-            qr_path = Path(TOOL_IMAGES_PATH) / qr_filename
-            ensure_path_in_base(TOOL_IMAGES_PATH, qr_path)
             ensure_barcode(barcode)
-            app.logger.debug(
-                f"Generating QR code for barcode {barcode} and saving to {qr_path}"
-            )
         elif barcode:
-            # Make sure the barcode is not already allocated
-            g.db.cursor.execute('SELECT name FROM inventory WHERE barcode = ?', (barcode,))
+            # Make sure the barcode is not already allocated (other than to this tool)
+            g.db.cursor.execute('SELECT name FROM inventory WHERE barcode = ? and id != ?', (barcode,tool_id))
             results = g.db.cursor.fetchall()
             if len(results) > 0:
                 other = results[0]
-                e_msg = f'Error adding tool: barcode already in use by: {other[0]}'
+                e_msg = f'Error editing tool: barcode already in use by: {other[0]}'
                 app.logger.error(e_msg)
                 return redirect(url_for('admin_dashboard', result=json.dumps({
                     'success': False,
                     'message': e_msg
                 })))
             ensure_barcode(barcode)
+
         # Get the current picture value
         g.db.cursor.execute('SELECT picture FROM inventory WHERE id = ?', (tool_id,))
         old_picture_path = g.db.cursor.fetchone()[0]
 
+        # Handle picture upload if provided
+        picture_path = old_picture_path
+        if 'picture' in request.files:
+            pic = request.files['picture']
+            if pic.filename != '':
+                picture_path = save_tool_picture().as_posix()
+
         # Update tool
         g.db.cursor.execute('''
             UPDATE inventory 
-            SET name = ?, description = ?, picture = COALESCE(?, picture)
+            SET name = ?, barcode = ?, description = ?, picture = COALESCE(?, picture)
             WHERE id = ?
-        ''', (name, description, picture_path, tool_id))
+        ''', (name, barcode, description, picture_path, tool_id))
 
         g.db.conn.commit()
+
+        if picture_path != old_picture_path and old_picture_path is not None:
+            # Clean up old picture
+            sanitized_old_path = ensure_path_in_base(TOOL_IMAGES_PATH, TOOL_IMAGES_PATH / Path(old_picture_path))
+            sanitized_old_path.unlink()
+            app.logger.debug(f"Old picture deleted (ID: {tool_id}): {sanitized_old_path}")
     except Exception as e:
         g.db.conn.rollback()
         e_msg = f'Error updating tool: {e}'
@@ -245,11 +240,6 @@ def edit_tool():
             'success': False,
             'message': e_msg
         })))
-    if old_picture_path:
-        # Clean up old picture
-        sanitized_old_path = ensure_path_in_base(TOOL_IMAGES_PATH, TOOL_IMAGES_PATH / Path(old_picture_path))
-        sanitized_old_path.unlink()
-        app.logger.debug(f"Old picture deleted (ID: {tool_id}): {sanitized_old_path}")
     app.logger.info(f"Tool updated: {name} (ID: {tool_id})")
     return redirect(url_for('admin_dashboard', result=json.dumps({
         'success': True,
@@ -432,6 +422,9 @@ def ensure_all_have_barcode(db: DB):
 def ensure_barcode(barcode: str):
     img_path = Path(TOOL_BARCODES_PATH) / f"qr_{barcode}.png"
     if not img_path.exists():
+        app.logger.debug(
+            f"Generating QR code for barcode {barcode} and saving to {img_path}"
+        )
         generate_qr_code(str(barcode), img_path)
 
 
