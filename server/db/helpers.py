@@ -49,12 +49,12 @@ def create_sample_data(db_instance: DB):
             user_id = cursor.fetchone()[0]
             user_ids.append(user_id)
         tools = [
-            ('Jake', '2', 'This is tool 1.', 'jake.png', True, user_ids[0], datetime.datetime.now(tz=datetime.timezone.utc)),
-            ('Hammer', None, 'This is tool 2.', None, True, user_ids[0], datetime.datetime.now(tz=datetime.timezone.utc)),
-            ('Metric allan keys', '3', 'This is tool 3.', None, True, user_ids[1], datetime.datetime.now(tz=datetime.timezone.utc)),
-            ('Imperial allan keys', '5', 'This is tool 4.', None, True, user_ids[2], datetime.datetime.now(tz=datetime.timezone.utc)),
-            ('Drill bits 1', None, 'This is tool 5.', None, False, None, None),
-            ('Drill bits 2', 69, 'This is tool 6.', None, False, None, None),
+            ('Jake', '2', 'Wow, what a tool', 'jake.png', True, user_ids[0], datetime.datetime.now(tz=datetime.timezone.utc)),
+            ('Hammer', None, 'Hits stuff', None, True, user_ids[0], datetime.datetime.now(tz=datetime.timezone.utc)),
+            ('Metric hex keys', '3', 'Metric lmao', None, True, user_ids[1], datetime.datetime.now(tz=datetime.timezone.utc)),
+            ('Imperial hex keys', '5', 'Imperial lmao', None, True, user_ids[2], datetime.datetime.now(tz=datetime.timezone.utc)),
+            ('Drill bits 1', None, 'Drill bits', None, False, None, None),
+            ('Drill bits 2', 69, 'Drill bits', None, False, None, None),
         ]
         for tool in tools:
             cursor.execute(
