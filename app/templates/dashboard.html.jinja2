@@ -44,16 +44,16 @@
             </div>
         </div>
 
-        <!-- My Signed Out Tools Section -->
+        <!-- Signed Out Tools Section -->
         <div class="col-md-6">
             <div class="card">
                 <div class="card-header">
-                    <h2>My Signed Out Tools</h2>
+                    <h2>Signed Out Tools</h2>
                 </div>
                 <div class="card-body">
-                    {% if my_tools %}
+                    {% if signed_out_tools %}
                         <div class="row">
-                            {% for id, tool in my_tools.items() %}
+                            {% for id, tool in signed_out_tools.items() %}
                                 <div class="col-md-6 mb-3">
                                     <div class="card">
                                         {% if tool.picture_url %}

@@ -62,7 +62,6 @@ def dashboard():
     return render_template('dashboard.html.jinja2',
                            user=get_user(),
                            users=get_users(),
-                           my_tools=get_my_tools(),
                            available_tools=get_available_tools(),
                            signed_out_tools=get_signed_out_tools())
 
