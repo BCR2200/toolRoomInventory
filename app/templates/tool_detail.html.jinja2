@@ -3,8 +3,8 @@
 {% block title %}TRI - Tool Details - {{ tool.name }}{% endblock %}
 
 {% block nav_items %}
-    <a class="nav-link" href="{{ url_for('dashboard') }}">Main Dashboard</a>
-    <a class="nav-link" href="{{ url_for('admin_dashboard') }}">Admin Dashboard</a>
+    <a class="nav-link" href="{{ url_for('dashboard') }}">Dashboard</a>
+    <a class="nav-link" href="{{ url_for('manage_tools') }}">Manage Tools</a>
     <span class="nav-link">Welcome, {{ user.name }}</span>
 {% endblock %}
 

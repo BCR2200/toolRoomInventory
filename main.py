@@ -67,16 +67,15 @@ def dashboard():
                            signed_out_tools=get_signed_out_tools())
 
 
-# Update the admin_dashboard route
-@app.route('/admin-dashboard')
-def admin_dashboard():
+@app.route('/manage-tools')
+def manage_tools():
     if not get_user().is_admin:
         return redirect(url_for('dashboard', result=json.dumps({
             'success': False,
             'message': 'You do not have permission to access this page.'
         })))
 
-    return render_template('admin_dashboard.html.jinja2',
+    return render_template('manage_tools.html.jinja2',
                            user=get_user(),
                            users=get_users(),
                            tools=get_inventory())
@@ -135,7 +134,7 @@ def add_tool():
                 other = results[0]
                 e_msg = f'Error adding tool: barcode already in use by: {other[0]}'
                 app.logger.error(e_msg)
-                return redirect(url_for('admin_dashboard', result=json.dumps({
+                return redirect(url_for('manage_tools', result=json.dumps({
                     'success': False,
                     'message': e_msg
                 })))
@@ -153,7 +152,7 @@ def add_tool():
         new_id = g.db.cursor.fetchone()[0]
         g.db.conn.commit()
         app.logger.info(f"New tool added: {name} (ID: {new_id})")
-        return redirect(url_for('admin_dashboard', result=json.dumps({
+        return redirect(url_for('manage_tools', result=json.dumps({
             'success': True,
             'message': f"Tool '{name}' added successfully."
         })))
@@ -161,7 +160,7 @@ def add_tool():
         g.db.conn.rollback()
         e_msg = f'Error adding tool: {e}'
         app.logger.error(e_msg)
-        return redirect(url_for('admin_dashboard', result=json.dumps({
+        return redirect(url_for('manage_tools', result=json.dumps({
             'success': False,
             'message': e_msg
         })))
@@ -203,7 +202,7 @@ def edit_tool():
                 other = results[0]
                 e_msg = f'Error editing tool: barcode already in use by: {other[0]}'
                 app.logger.error(e_msg)
-                return redirect(url_for('admin_dashboard', result=json.dumps({
+                return redirect(url_for('manage_tools', result=json.dumps({
                     'success': False,
                     'message': e_msg
                 })))
@@ -235,12 +234,12 @@ def edit_tool():
         g.db.conn.rollback()
         e_msg = f'Error updating tool: {e}'
         app.logger.error(e_msg)
-        return redirect(url_for('admin_dashboard', result=json.dumps({
+        return redirect(url_for('manage_tools', result=json.dumps({
             'success': False,
             'message': e_msg
         })))
     app.logger.info(f"Tool updated: {name} (ID: {tool_id})")
-    return redirect(url_for('admin_dashboard', result=json.dumps({
+    return redirect(url_for('manage_tools', result=json.dumps({
         'success': True,
         'message': f"Tool '{name}' updated successfully."
     })))
@@ -265,14 +264,14 @@ def delete_tool():
         g.db.conn.rollback()
         e_msg = f'Error deleting tool: {e}'
         app.logger.error(e_msg)
-        return redirect(url_for('admin_dashboard', result=json.dumps({
+        return redirect(url_for('manage_tools', result=json.dumps({
             'success': False,
             'message': e_msg
         })))
     if old_picture_path:
         safe_unlink_tool_image(old_picture_path)
     app.logger.info(f"Tool deleted: {tool} (ID: {tool_id})")
-    return redirect(url_for('admin_dashboard', result=json.dumps({
+    return redirect(url_for('manage_tools', result=json.dumps({
         'success': True,
         'message': f"Tool '{tool}' deleted successfully."
     })))
