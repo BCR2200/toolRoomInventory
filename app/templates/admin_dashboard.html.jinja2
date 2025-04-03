@@ -61,7 +61,7 @@
     </div>
 
     <!-- Tools List -->
-    <div class="card">
+    <div class="card mb-4">
         <div class="card-header">
             <h2>Manage Tools</h2>
         </div>
@@ -85,7 +85,7 @@
                                 <td>{{ tool.description }}</td>
                                 <td>
                                     {% if tool.signed_out %}
-                                        Signed out to User {{ tool.holder_id }}
+                                        Signed out to {{ users[tool.holder_id].name }}
                                     {% else %}
                                         Available
                                     {% endif %}

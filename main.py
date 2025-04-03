@@ -78,6 +78,7 @@ def admin_dashboard():
 
     return render_template('admin_dashboard.html.jinja2',
                            user=get_user(),
+                           users=get_users(),
                            tools=get_inventory())
 
 
