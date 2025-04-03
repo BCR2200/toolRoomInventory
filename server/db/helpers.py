@@ -36,14 +36,16 @@ def create_sample_data(db_instance: DB):
     cursor.execute('SELECT COUNT(*) FROM users')
     if cursor.fetchone()[0] == 0:
         users = [
-            ('Hugo', True, True),
-            ('Jake', False, True),
-            ('Adam', True, True),
+            ('Hugo', 2, True, True),
+            ('Jake', None, False, True),
+            ('Adam', '53', True, True),
         ]
         user_ids = []
         for user in users:
             cursor.execute(
-                'INSERT INTO users (name, is_admin, is_user) VALUES (?, ?, ?) RETURNING id',
+                'INSERT INTO users '
+                '(name, barcode, is_admin, is_user) '
+                'VALUES (?, ?, ?, ?) RETURNING id',
                 user
             )
             user_id = cursor.fetchone()[0]

@@ -17,6 +17,7 @@ class DB:
         '''CREATE TABLE IF NOT EXISTS users (
             id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
             name TEXT NOT NULL,
+            barcode TEXT,
             is_admin BOOLEAN NOT NULL DEFAULT 0,
             is_user BOOLEAN NOT NULL DEFAULT 1
         )''',
