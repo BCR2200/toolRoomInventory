@@ -89,24 +89,48 @@
             <div class="modal-content">
                 <div class="modal-header">
                     <h5 class="modal-title">Edit Tool</h5>
-                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
                 </div>
                 <div class="modal-body">
                     <form method="POST" action="{{ url_for('edit_tool') }}" enctype="multipart/form-data">
                         <input type="hidden" name="tool_id" value="{{ tool.tool_id }}">
                         <div class="mb-3">
-                            <label for="name" class="form-label">Tool Name</label>
-                            <input type="text" class="form-control" id="name" name="name"
-                                   value="{{ tool.name }}" required>
+                            <label for="edit_name{{ tool.tool_id }}" class="form-label">Tool Name</label>
+                            <input type="text" class="form-control" id="edit_name{{ tool.tool_id }}" name="name" value="{{ tool.name }}" required>
                         </div>
                         <div class="mb-3">
-                            <label for="description" class="form-label">Description</label>
-                            <textarea class="form-control" id="description" name="description"
-                                      rows="3">{{ tool.description }}</textarea>
+                            <label for="edit_description{{ tool.tool_id }}" class="form-label">Description</label>
+                            <textarea class="form-control" id="edit_description{{ tool.tool_id }}" name="description" rows="3">{{ tool.description }}</textarea>
                         </div>
                         <div class="mb-3">
-                            <label for="picture" class="form-label">Update Picture</label>
-                            <input type="file" class="form-control" id="picture" name="picture">
+                            <label for="edit_picture{{ tool.tool_id }}" class="form-label">Picture</label>
+                            <input type="file" class="form-control" id="edit_picture{{ tool.tool_id }}" name="picture">
+                        </div>
+                        <div class="mb-3 form-check">
+                            <input type="checkbox" class="form-check-input" id="allocate_barcode{{ tool.tool_id }}" name="allocate_barcode">
+                            <script>
+                                document.addEventListener("DOMContentLoaded", function () {
+                                    const allocateBarcodeCheckbox = document.getElementById("allocate_barcode{{ tool.tool_id }}");
+                                    allocateBarcodeCheckbox.checked = false
+                                    const barcodeCollapse = document.getElementById("barcodeCollapse{{ tool.tool_id }}");
+                                    barcodeCollapse.classList.add("show");
+
+                                    allocateBarcodeCheckbox.addEventListener("change", function () {
+                                        if (allocateBarcodeCheckbox.checked) {
+                                            barcodeCollapse.classList.remove("show");
+                                        } else {
+                                            barcodeCollapse.classList.add("show");
+                                        }
+                                    });
+                                });
+                            </script>
+                            <label class="form-check-label" for="allocate_barcode{{ tool.tool_id }}">Allocate new barcode</label>
+                        </div>
+                        <div class="mb-3 collapse" id="barcodeCollapse{{ tool.tool_id }}">
+                            <label for="barcode" class="form-label">Barcode</label>
+                            <input type="text" class="form-control" id="barcode{{ tool.tool_id }}" name="barcode" pattern="\d*"
+                                   title="Please enter a valid number." value="{{ tool.barcode if tool.barcode else "" }}">
+
                         </div>
                         <button type="submit" class="btn btn-primary">Save Changes</button>
                     </form>
