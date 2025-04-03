@@ -13,8 +13,10 @@
             <a class="navbar-brand" href="{{ url_for('dashboard') }}">Dashboard</a>
             <div class="navbar-nav ms-auto">
                 {% block nav_items %}
+                    <a class="nav-link" href="{{ url_for('dashboard') }}">Dashboard</a>
                     {% if user.is_admin %}
                         <a class="nav-link" href="{{ url_for('manage_tools') }}">Manage Tools</a>
+                        <a class="nav-link" href="{{ url_for('manage_users') }}">Manage Users</a>
                     {% endif %}
                     <span class="nav-link">Welcome, {{ user.name }}</span>
                 {% endblock %}

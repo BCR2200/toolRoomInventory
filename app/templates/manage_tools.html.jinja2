@@ -2,11 +2,6 @@
 
 {% block title %}TRI - Manage Tools{% endblock %}
 
-{% block nav_items %}
-    <a class="nav-link" href="{{ url_for('dashboard') }}">Main Dashboard</a>
-    <span class="nav-link">Welcome, {{ user.name }}</span>
-{% endblock %}
-
 {% block content %}
     <!-- Add Tool Form -->
     <div class="card mb-4">
@@ -70,17 +65,16 @@
                 <table class="table">
                     <thead>
                         <tr>
-                            <th>Barcode</th>
                             <th>Name</th>
                             <th>Description</th>
                             <th>Status</th>
+                            <th>Barcode</th>
                             <th>Actions</th>
                         </tr>
                     </thead>
                     <tbody>
                         {% for id, tool in tools.items() %}
                             <tr>
-                                <td>{{ tool.barcode }}</td>
                                 <td><a href="{{ url_for('tool_detail', tool_id=tool.tool_id) }}">{{ tool.name }}</a></td>
                                 <td>{{ tool.description }}</td>
                                 <td>
@@ -90,6 +84,7 @@
                                         Available
                                     {% endif %}
                                 </td>
+                                <td>{{ tool.barcode }}</td>
                                 <td>
                                     <button class="btn btn-sm btn-primary" data-bs-toggle="modal" data-bs-target="#editTool{{ tool.tool_id }}">Edit</button>
                                     <form method="POST" action="{{ url_for('delete_tool') }}" class="d-inline">
