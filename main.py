@@ -8,6 +8,7 @@ from flask import Flask, render_template, request, redirect, url_for, g, send_fr
 from server.db.db import DB
 from server.db.helpers import create_sample_data, drop_all_data
 from server.qr import generate_qr_code
+from server.barcodes import generate_barcode
 from server.tool import Tool
 from server.user import User
 
@@ -413,13 +414,23 @@ def ensure_all_have_barcode(db: DB):
         ensure_barcode(barcode)
 
 
-def ensure_barcode(barcode: str):
+def ensure_qr_code(barcode: str):
     img_path = Path(TOOL_BARCODES_PATH) / f"qr_{barcode}.png"
     if not img_path.exists():
         app.logger.debug(
             f"Generating QR code for barcode {barcode} and saving to {img_path}"
         )
         generate_qr_code(str(barcode), img_path)
+
+
+def ensure_barcode(barcode: str):
+    img_path = Path(TOOL_BARCODES_PATH) / f"bar_{barcode}.png"
+    if not img_path.exists():
+        app.logger.debug(
+            f"Generating barcode for barcode {barcode} and saving to {img_path}"
+        )
+        generate_barcode(str(barcode), img_path)
+
 
 def safe_unlink_tool_image(tool_image: str):
     if tool_image:

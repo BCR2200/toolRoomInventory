@@ -31,7 +31,7 @@ class Tool:
         if self.barcode is None:
             return None
         # TODO const refactor
-        return f"qr_{self.barcode}.png"
+        return f"bar_{self.barcode}.png"
 
     @property
     def picture_url(self):
