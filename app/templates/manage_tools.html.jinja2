@@ -76,7 +76,7 @@
                         {% for id, tool in tools.items() %}
                             <tr>
                                 <td><a href="{{ url_for('tool_detail', tool_id=tool.tool_id) }}">{{ tool.name }}</a></td>
-                                <td>{{ tool.description }}</td>
+                                <td><p style="white-space: pre-line">{{ tool.description }}</p></td>
                                 <td>
                                     {% if tool.signed_out %}
                                         Signed out to {{ users[tool.holder_id].name }}
