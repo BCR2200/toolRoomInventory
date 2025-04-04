@@ -1,4 +1,5 @@
 import datetime
+from functools import wraps
 import json
 import logging
 from pathlib import Path
@@ -21,6 +22,20 @@ TOOL_IMAGES_PATH = (DATA_PATH / 'tool_images').resolve()
 TOOL_IMAGES_PATH.mkdir(exist_ok=True)
 TOOL_BARCODES_PATH = (DATA_PATH / 'tool_barcodes').resolve()
 TOOL_BARCODES_PATH.mkdir(exist_ok=True)
+
+
+def admin_required(endpoint):
+    def decorator(f):
+        @wraps(f)
+        def decorated_function(*args, **kwargs):
+            if not get_user().is_admin:
+                return redirect(url_for('dashboard', result=json.dumps({
+                    'success': False,
+                    'message': 'You do not have permission to access this page.'
+                })))
+            return f(*args, **kwargs)
+        return decorated_function
+    return decorator
 
 
 @app.before_request
@@ -67,13 +82,8 @@ def dashboard():
 
 
 @app.route('/manage-tools')
+@admin_required('dashboard')
 def manage_tools():
-    if not get_user().is_admin:
-        return redirect(url_for('dashboard', result=json.dumps({
-            'success': False,
-            'message': 'You do not have permission to access this page.'
-        })))
-
     return render_template('manage_tools.html.jinja2',
                            user=get_user(),
                            users=get_users(),
@@ -81,6 +91,7 @@ def manage_tools():
 
 
 @app.route('/tool/<tool_id>')
+@admin_required('dashboard')
 def tool_detail(tool_id):
     user = get_user()
     tool = get_inventory().get(int(tool_id))
@@ -93,13 +104,8 @@ def tool_detail(tool_id):
 
 
 @app.route('/admin/add-tool', methods=['POST'])
+@admin_required('manage_tools')
 def add_tool():
-    if not get_user().is_admin:
-        return redirect(url_for('dashboard', result=json.dumps({
-            'success': False,
-            'message': 'You do not have permission to access this page.'
-        })))
-
     name = request.form.get('name')
     description = request.form.get('description')
     allocate_barcode = request.form.get('allocate_barcode')
@@ -166,13 +172,8 @@ def add_tool():
 
 
 @app.route('/admin/edit-tool', methods=['POST'])
+@admin_required('manage_tools')
 def edit_tool():
-    if not get_user().is_admin:
-        return redirect(url_for('dashboard', result=json.dumps({
-            'success': False,
-            'message': 'You do not have permission to access this page.'
-        })))
-
     tool_id = int(request.form.get('tool_id'))
     name = request.form.get('name')
     description = request.form.get('description')
@@ -245,13 +246,8 @@ def edit_tool():
 
 
 @app.route('/admin/delete-tool', methods=['POST'])
+@admin_required('manage_tools')
 def delete_tool():
-    if not get_user().is_admin:
-        return redirect(url_for('dashboard', result=json.dumps({
-            'success': False,
-            'message': 'You do not have permission to access this page.'
-        })))
-
     tool_id = int(request.form.get('tool_id'))
 
     g.db.cursor.execute('BEGIN IMMEDIATE TRANSACTION')
@@ -279,8 +275,7 @@ def delete_tool():
 @app.route('/borrow-tool', methods=['POST'])
 def borrow_tool():
     tool_id = int(request.form.get('tool_id'))
-    # TODO: get user from user making request, not user that the user said is making the request
-    user_id = int(request.form.get('user_id'))
+    user_id = get_user().user_id
 
     # Check if tool exists and is available
     g.db.cursor.execute('''
@@ -307,7 +302,7 @@ def borrow_tool():
 @app.route('/return-tool', methods=['POST'])
 def return_tool():
     tool_id = int(request.form.get('tool_id'))
-    user_id = int(request.form.get('user_id'))
+    user_id = get_user().user_id
 
     # Check if tool exists and is signed out
     g.db.cursor.execute('''
