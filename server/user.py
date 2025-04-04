@@ -2,7 +2,7 @@ from typing import Optional, Self, Tuple
 
 
 class User:
-    def __init__(self, user_id: int, name: str, barcode: Optional[str],
+    def __init__(self, user_id: Optional[int], name: str, barcode: Optional[str],
                  is_admin: bool, is_user: bool):
         self.user_id = user_id
         self.name = name

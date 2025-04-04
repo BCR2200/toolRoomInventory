@@ -90,6 +90,14 @@ def manage_tools():
                            tools=get_inventory())
 
 
+@app.route('/manage-users')
+@admin_required('dashboard')
+def manage_users():
+    return render_template('manage_users.html.jinja2',
+                           user=get_user(),
+                           users=get_users())
+
+
 @app.route('/tool/<tool_id>')
 @admin_required('dashboard')
 def tool_detail(tool_id):
@@ -324,6 +332,167 @@ def return_tool():
         app.logger.warning(f"Attempt to return non-signed-out tool {tool_id}.")
 
     return redirect(url_for('dashboard'))
+
+
+@app.route('/admin/add-user', methods=['POST'])
+@admin_required('manage_users')
+def add_user():
+    name = request.form.get('name')
+    role = request.form.get('role')
+    allocate_barcode = request.form.get('allocate_barcode')
+    barcode = request.form.get('barcode') or None
+    is_admin, is_user = False, True
+    if role.lower() == 'admin':
+        is_admin = True
+    # Start exclusive transaction so that we know we allocate a unique barcode
+    g.db.cursor.execute('BEGIN EXCLUSIVE TRANSACTION')
+    try:
+        if allocate_barcode:
+            # Select the lowest open ID in the range [1, inf)
+            g.db.cursor.execute('''
+                SELECT MIN(t1.barcode + 1)
+                FROM users AS t1
+                LEFT JOIN users AS t2 ON t1.barcode + 1 = t2.barcode
+                WHERE t2.barcode IS NULL
+            ''')
+            barcode = g.db.cursor.fetchone()[0] or 1
+            # Generate and save QR code image
+            ensure_qr_code(barcode)
+        elif barcode:
+            # Make sure the barcode is not already allocated
+            g.db.cursor.execute('SELECT name FROM users WHERE barcode = ?', (barcode,))
+            results = g.db.cursor.fetchall()
+            if len(results) > 0:
+                other = results[0]
+                e_msg = f'Error adding user: barcode already in use by: {other[0]}'
+                app.logger.error(e_msg)
+                return redirect(url_for('manage_users', result=json.dumps({
+                    'success': False,
+                    'message': e_msg
+                })))
+            ensure_qr_code(barcode)
+        user = User(user_id=None, name=name, barcode=barcode, is_admin=is_admin, is_user=is_user)
+        row, projection = user.to_row_and_projection()
+
+        # Insert new user
+        g.db.cursor.execute(f'''
+            INSERT INTO users {projection[0]}
+            VALUES {projection[1]}
+            RETURNING id
+        ''', row)
+        new_id = g.db.cursor.fetchone()[0]
+        g.db.conn.commit()
+        app.logger.info(f"New user added: {name} (ID: {new_id})")
+        return redirect(url_for('manage_users', result=json.dumps({
+            'success': True,
+            'message': f"User '{name}' added successfully."
+        })))
+    except Exception as e:
+        g.db.conn.rollback()
+        e_msg = f'Error adding user: {e}'
+        app.logger.error(e_msg)
+        return redirect(url_for('manage_users', result=json.dumps({
+            'success': False,
+            'message': e_msg
+        })))
+
+
+@app.route('/admin/edit-user', methods=['POST'])
+@admin_required('manage_users')
+def edit_user():
+    user_id = int(request.form.get('user_id'))
+    name = request.form.get('name')
+    role = request.form.get('role')
+    allocate_barcode = request.form.get('allocate_barcode')
+    barcode = request.form.get('barcode') or None
+    is_admin, is_user = False, True
+    if role.lower() == 'admin':
+        is_admin = True
+    # Start transaction with SERIALIZABLE isolation
+    g.db.cursor.execute('BEGIN IMMEDIATE TRANSACTION')
+    try:
+        if allocate_barcode:
+            # Select the lowest open ID in the range [1, inf)
+            g.db.cursor.execute('''
+                SELECT MIN(t1.barcode + 1)
+                FROM users AS t1
+                LEFT JOIN users AS t2 ON t1.barcode + 1 = t2.barcode
+                WHERE t2.barcode IS NULL
+            ''')
+            barcode = g.db.cursor.fetchone()[0] or 1
+            # Generate and save QR code image
+            ensure_barcode(barcode)
+        elif barcode:
+            # Make sure the barcode is not already allocated (other than to this user)
+            g.db.cursor.execute('SELECT name FROM users WHERE barcode = ? and id != ?',
+                                (barcode, user_id))
+            results = g.db.cursor.fetchall()
+            if len(results) > 0:
+                other = results[0]
+                e_msg = f'Error editing user: barcode already in use by: {other[0]}'
+                app.logger.error(e_msg)
+                return redirect(url_for('manage_users', result=json.dumps({
+                    'success': False,
+                    'message': e_msg
+                })))
+            ensure_barcode(barcode)
+
+        user = User(user_id=user_id, name=name, barcode=barcode, is_admin=is_admin, is_user=is_user)
+        row, projections = user.to_row_and_projection()
+        # Update user
+        g.db.cursor.execute('''
+            UPDATE users
+            SET id = ?, name = ?, barcode = ?, is_admin = ?, is_user = ?
+            WHERE id = ?
+        ''', row + (row[0],))
+
+        g.db.conn.commit()
+    except Exception as e:
+        g.db.conn.rollback()
+        e_msg = f'Error updating user: {e}'
+        app.logger.error(e_msg)
+        return redirect(url_for('manage_users', result=json.dumps({
+            'success': False,
+            'message': e_msg
+        })))
+    app.logger.info(f"User updated: {name} (ID: {user_id})")
+    return redirect(url_for('manage_users', result=json.dumps({
+        'success': True,
+        'message': f"User '{name}' updated successfully."
+    })))
+
+
+@app.route('/admin/delete-user', methods=['POST'])
+@admin_required('manage_users')
+def delete_user():
+    user_id = int(request.form.get('user_id'))
+    g.db.cursor.execute('BEGIN IMMEDIATE TRANSACTION')
+    try:
+        # Unassign all tools signed out to this user
+        g.db.cursor.execute('''
+            UPDATE inventory
+            SET signed_out = 0,
+                holder_id = NULL,
+                signed_out_since = NULL
+            WHERE holder_id = ?
+        ''', (user_id,))
+        # Delete user
+        g.db.cursor.execute('''
+            DELETE FROM users WHERE id = ?
+        ''', (user_id,))
+        g.db.conn.commit()
+        return redirect(url_for('manage_users', result=json.dumps({
+            'success': True,
+            'message': f"User with ID {user_id} deleted successfully."
+        })))
+    except Exception as e:
+        g.db.conn.rollback()
+        e_msg = f'Error deleting user: {e}'
+        app.logger.error(e_msg)
+        return redirect(url_for('manage_users', result=json.dumps({
+            'success': False,
+            'message': e_msg
+        })))
 
 
 def get_users() -> Dict[int, User]:
