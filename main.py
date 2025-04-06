@@ -24,28 +24,11 @@ TOOL_BARCODES_PATH = (DATA_PATH / 'tool_barcodes').resolve()
 TOOL_BARCODES_PATH.mkdir(exist_ok=True)
 
 
-def admin_required(endpoint):
-    def decorator(f):
-        @wraps(f)
-        def decorated_function(*args, **kwargs):
-            if not get_user().is_admin:
-                return redirect(url_for('dashboard', result=json.dumps({
-                    'success': False,
-                    'message': 'You do not have permission to access this page.'
-                })))
-            return f(*args, **kwargs)
-        return decorated_function
-    return decorator
-
-
 @app.before_request
 def set_request_globals():
     """Set up a new database connection for each request."""
     g.db = DB(DB_PATH)
     g.db.connect()
-    # TODO
-    # g.user = webserver.authnz.authorize.logged_in_user()
-    # g.user_role = webserver.authnz.authorize.logged_in_user_role()
 
 
 @app.after_request
@@ -75,44 +58,36 @@ def tool_barcode(img):
 @app.route('/dashboard')
 def dashboard():
     return render_template('dashboard.html.jinja2',
-                           user=get_user(),
                            users=get_users(),
                            available_tools=get_available_tools(),
                            signed_out_tools=get_signed_out_tools())
 
 
 @app.route('/manage-tools')
-@admin_required('dashboard')
 def manage_tools():
     return render_template('manage_tools.html.jinja2',
-                           user=get_user(),
                            users=get_users(),
                            tools=get_inventory())
 
 
 @app.route('/manage-users')
-@admin_required('dashboard')
 def manage_users():
     return render_template('manage_users.html.jinja2',
-                           user=get_user(),
                            users=get_users())
 
 
 @app.route('/tool/<tool_id>')
-@admin_required('dashboard')
 def tool_detail(tool_id):
-    user = get_user()
     tool = get_inventory().get(int(tool_id))
     if tool is None:
         return redirect(url_for('dashboard', result=json.dumps({
             'success': False,
             'message': f"Tool with ID {tool_id} does not exist."
         })))
-    return render_template('tool_detail.html.jinja2', tool=tool, user=user, users=get_users())
+    return render_template('tool_detail.html.jinja2', tool=tool, users=get_users())
 
 
 @app.route('/user/<user_id>')
-@admin_required('dashboard')
 def user_detail(user_id):
     user_item = get_users().get(int(user_id))
     if user_item is None:
@@ -125,7 +100,6 @@ def user_detail(user_id):
 
 
 @app.route('/admin/add-tool', methods=['POST'])
-@admin_required('manage_tools')
 def add_tool():
     name = request.form.get('name')
     description = request.form.get('description')
@@ -193,7 +167,6 @@ def add_tool():
 
 
 @app.route('/admin/edit-tool', methods=['POST'])
-@admin_required('manage_tools')
 def edit_tool():
     tool_id = int(request.form.get('tool_id'))
     name = request.form.get('name')
@@ -267,7 +240,6 @@ def edit_tool():
 
 
 @app.route('/admin/delete-tool', methods=['POST'])
-@admin_required('manage_tools')
 def delete_tool():
     tool_id = int(request.form.get('tool_id'))
 
@@ -296,7 +268,9 @@ def delete_tool():
 @app.route('/borrow-tool', methods=['POST'])
 def borrow_tool():
     tool_id = int(request.form.get('tool_id'))
-    user_id = get_user().user_id
+    # Team members aren't going to log into this app; it will be Nick operating it so it won't be multi-user.
+    # Trust input from user.
+    user_id = int(request.form.get('user_id'))
 
     # Check if tool exists and is available
     g.db.cursor.execute('''
@@ -323,7 +297,7 @@ def borrow_tool():
 @app.route('/return-tool', methods=['POST'])
 def return_tool():
     tool_id = int(request.form.get('tool_id'))
-    user_id = get_user().user_id
+    user_id = int(request.form.get('user_id'))
 
     # Check if tool exists and is signed out
     g.db.cursor.execute('''
@@ -348,7 +322,6 @@ def return_tool():
 
 
 @app.route('/admin/add-user', methods=['POST'])
-@admin_required('manage_users')
 def add_user():
     name = request.form.get('name')
     role = request.form.get('role')
@@ -411,7 +384,6 @@ def add_user():
 
 
 @app.route('/admin/edit-user', methods=['POST'])
-@admin_required('manage_users')
 def edit_user():
     user_id = int(request.form.get('user_id'))
     name = request.form.get('name')
@@ -476,7 +448,6 @@ def edit_user():
 
 
 @app.route('/admin/delete-user', methods=['POST'])
-@admin_required('manage_users')
 def delete_user():
     user_id = int(request.form.get('user_id'))
     g.db.cursor.execute('BEGIN IMMEDIATE TRANSACTION')
@@ -515,12 +486,6 @@ def get_users() -> Dict[int, User]:
         for row in g.db.cursor.fetchall()
     }
 
-def get_user() -> User:
-    # TODO: get the user from the request
-    return User.from_row(
-        g.db.cursor.execute(f"SELECT {', '.join(User.default_projection())} from users where name = 'Hugo'").fetchone()
-    )
-
 def get_inventory() -> Dict[int, Tool]:
     g.db.cursor.execute(f'''
         SELECT {', '.join(Tool.default_projection())} 
@@ -532,18 +497,21 @@ def get_inventory() -> Dict[int, Tool]:
     }
 
 def get_available_tools() -> Dict[int, Tool]:
+    # TODO SQL
     return {tool_id: tool for tool_id, tool in get_inventory().items() if not tool.signed_out}
 
 
 def get_signed_out_tools() -> Dict[int, Tool]:
+    # TODO SQL
     return {tool_id: tool for tool_id, tool in get_inventory().items() if tool.signed_out}
 
 
-def get_my_tools() -> Dict[int, Tool]:
+def get_my_tools(user_id: int) -> Dict[int, Tool]:
+    # TODO SQL
     return {
         tool_id: tool
         for tool_id, tool in get_signed_out_tools().items()
-        if tool.signed_out and tool.holder_id == get_user().user_id
+        if tool.signed_out and tool.holder_id == user_id
     }
 
 

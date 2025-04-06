@@ -18,9 +18,7 @@
                                 <tr>
                                     <th>Name</th>
                                     <th>Description</th>
-                                    <th>Status</th>
                                     <th>Barcode</th>
-                                    <th>Actions</th>
                                 </tr>
                                 </thead>
                                 <tbody>
@@ -28,25 +26,7 @@
                                     <tr>
                                         <td><a href="{{ url_for('tool_detail', tool_id=tool.tool_id) }}">{{ tool.name }}</a></td>
                                         <td><p style="white-space: pre-line">{{ tool.description }}</p></td>
-                                        <td>
-                                            {% if tool.signed_out %}
-                                                Signed out to {{ users[tool.holder_id].name }}
-                                            {% else %}
-                                                Available
-                                            {% endif %}
-                                        </td>
                                         <td>{{ tool.barcode }}</td>
-                                        <td>
-{#                                            <button class="btn btn-sm btn-primary" data-bs-toggle="modal" data-bs-target="#editTool{{ tool.tool_id }}">Edit</button>#}
-{#                                        TODO: Do we want to use a modal here?#}
-                                            {% if user.is_user %}
-                                                <form method="POST" action="{{ url_for('borrow_tool') }}">
-                                                    <input type="hidden" name="tool_id" value="{{ tool.tool_id }}">
-                                                    <input type="hidden" name="user_id" value="{{ user.user_id }}">
-                                                    <button type="submit" class="btn btn-sm btn-primary">Borrow</button>
-                                                </form>
-                                            {% endif %}
-                                        </td>
                                     </tr>
                                 {% endfor %}
                                 </tbody>
@@ -73,9 +53,8 @@
                                 <tr>
                                     <th>Name</th>
                                     <th>Description</th>
-                                    <th>Status</th>
+                                    <th>Signed out to</th>
                                     <th>Barcode</th>
-                                    <th>Actions</th>
                                 </tr>
                                 </thead>
                                 <tbody>
@@ -84,24 +63,11 @@
                                             <td><a href="{{ url_for('tool_detail', tool_id=tool.tool_id) }}">{{ tool.name }}</a></td>
                                             <td><p style="white-space: pre-line">{{ tool.description }}</p></td>
                                             <td>
-                                                {% if tool.signed_out %}
-                                                    Signed out to <a href="{{ url_for('user_detail', user_id=users[tool.holder_id].user_id) }}">{{ users[tool.holder_id].name }}</a>
-                                                {% else %}
-                                                    Available
-                                                {% endif %}
+                                                <a href="{{ url_for('user_detail', user_id=users[tool.holder_id].user_id) }}">
+                                                    {{ users[tool.holder_id].name }}
+                                                </a>
                                             </td>
                                             <td>{{ tool.barcode }}</td>
-                                            <td>
-                                                {# <button class="btn btn-sm btn-primary" data-bs-toggle="modal" data-bs-target="#editTool{{ tool.tool_id }}">Edit</button>#}
-                                                {# TODO: Do we want to use a modal here?#}
-                                                {% if user.is_user %}
-                                                    <form method="POST" action="{{ url_for('return_tool') }}">
-                                                        <input type="hidden" name="tool_id" value="{{ tool.tool_id }}">
-                                                        <input type="hidden" name="user_id" value="{{ user.user_id }}">
-                                                        <button type="submit" class="btn btn-sm btn-success">Return</button>
-                                                    </form>
-                                                {% endif %}
-                                            </td>
                                         </tr>
                                     {% endfor %}
                                 </tbody>
