@@ -39,6 +39,11 @@ def cleanup(response):
     return response
 
 
+@app.route('/')
+def index():
+    return redirect(url_for('dashboard'))
+
+
 @app.route('/favicon.ico')
 def favicon():
     return redirect(url_for('static', filename='favicon.ico'))
