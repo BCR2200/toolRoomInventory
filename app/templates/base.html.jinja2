@@ -14,10 +14,8 @@
             <div class="navbar-nav ms-auto">
                 {% block nav_items %}
                     <a class="nav-link" href="{{ url_for('dashboard') }}">Dashboard</a>
-                    {% if user.is_admin %}
-                        <a class="nav-link" href="{{ url_for('manage_tools') }}">Manage Tools</a>
-                        <a class="nav-link" href="{{ url_for('manage_users') }}">Manage Users</a>
-                    {% endif %}
+                    <a class="nav-link" href="{{ url_for('manage_tools') }}">Manage Tools</a>
+                    <a class="nav-link" href="{{ url_for('manage_users') }}">Manage Users</a>
                 {% endblock %}
             </div>
         </div>
