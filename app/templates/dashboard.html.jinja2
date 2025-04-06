@@ -85,7 +85,7 @@
                                             <td><p style="white-space: pre-line">{{ tool.description }}</p></td>
                                             <td>
                                                 {% if tool.signed_out %}
-                                                    Signed out to {{ users[tool.holder_id].name }}
+                                                    Signed out to <a href="{{ url_for('user_detail', user_id=users[tool.holder_id].user_id) }}">{{ users[tool.holder_id].name }}</a>
                                                 {% else %}
                                                     Available
                                                 {% endif %}

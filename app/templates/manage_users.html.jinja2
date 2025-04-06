@@ -73,7 +73,7 @@
                     <tbody>
                         {% for id, user_item in users.items() %}
                             <tr>
-                                <td>{{ user_item.name }}</td>
+                                <td><a href="{{ url_for('user_detail', user_id=id) }}">{{ user_item.name }}</a></td>
                                 <td>{{ user_item.roles }}</td>
                                 <td>{{ user_item.barcode }}</td>
                                 <td>
@@ -85,7 +85,7 @@
                                 </td>
                             </tr>
 
-                            <!-- Edit Tool Modal -->
+                            <!-- Edit User Modal -->
                             <div class="modal fade" id="editUser{{ id }}" tabindex="-1">
                                 <div class="modal-dialog">
                                     <div class="modal-content">

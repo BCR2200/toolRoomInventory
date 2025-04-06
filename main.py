@@ -111,6 +111,19 @@ def tool_detail(tool_id):
     return render_template('tool_detail.html.jinja2', tool=tool, user=user, users=get_users())
 
 
+@app.route('/user/<user_id>')
+@admin_required('dashboard')
+def user_detail(user_id):
+    user_item = get_users().get(int(user_id))
+    if user_item is None:
+        return redirect(url_for('dashboard', result=json.dumps({
+            'success': False,
+            'message': f"User with ID {user_id} does not exist."
+        })))
+    return render_template('user_detail.html.jinja2',
+                           user_item=user_item)
+
+
 @app.route('/admin/add-tool', methods=['POST'])
 @admin_required('manage_tools')
 def add_tool():
