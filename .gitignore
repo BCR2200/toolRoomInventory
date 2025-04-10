@@ -5,3 +5,4 @@
 /data/inventory.db
 /data/tool_images/*
 /data/tool_barcodes/*
+__pycache__
