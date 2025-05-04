@@ -411,7 +411,7 @@ def edit_user():
             ''')
             barcode = g.db.cursor.fetchone()[0] or 1
             # Generate and save QR code image
-            ensure_barcode(barcode)
+            ensure_qr_code(barcode)
         elif barcode:
             # Make sure the barcode is not already allocated (other than to this user)
             g.db.cursor.execute('SELECT name FROM users WHERE barcode = ? and id != ?',
@@ -425,7 +425,7 @@ def edit_user():
                     'success': False,
                     'message': e_msg
                 })))
-            ensure_barcode(barcode)
+            ensure_qr_code(barcode)
 
         user = User(user_id=user_id, name=name, barcode=barcode, is_admin=is_admin, is_user=is_user)
         row, projections = user.to_row_and_projection()
